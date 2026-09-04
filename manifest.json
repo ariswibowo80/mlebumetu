@@ -1,0 +1,41 @@
+{
+  "name": "Mlebumetu - Finance Tracker",
+  "short_name": "Mlebumetu",
+  "description": "Keluar Masuk Duit - Pencatat Keuangan Pribadi",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f5f5",
+  "theme_color": "#b7131a",
+  "lang": "id",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "categories": ["finance", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Tambah Pengeluaran",
+      "short_name": "Pengeluaran",
+      "description": "Catat transaksi pengeluaran baru",
+      "url": "./?action=expense",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Tambah Pemasukan",
+      "short_name": "Pemasukan",
+      "description": "Catat transaksi pemasukan baru",
+      "url": "./?action=income",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Transfer Antar Akun",
+      "short_name": "Transfer",
+      "description": "Transfer dana antar akun",
+      "url": "./?action=transfer",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
