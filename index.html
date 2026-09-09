@@ -808,6 +808,10 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <div class="pcontent">
       <div class="spills" id="ad-stats"></div>
       <div class="sbar"><span class="ms" style="font-size:16px;color:var(--txm);">search</span><input type="text" id="ad-search" placeholder="Cari…" oninput="filterAD()"/></div>
+      <div style="display:flex;gap:7px;padding:8px 16px;overflow-x:auto;">
+        <select id="ad-month" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Bulan</option></select>
+        <select id="ad-year" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Tahun</option></select>
+      </div>
       <div id="ad-txns"></div>
     </div>
   </div>
@@ -2128,11 +2132,15 @@ function initDropdowns(){
   [fcA,rcA,rmA,ryA].forEach(function(s){ if(s&&s.options.length===0) s.add(new Option('Semua Akun','')); });
   [fcY,rcY,rmY].forEach(function(s){ if(s&&s.options.length===0) s.add(new Option('Semua Tahun','')); });
   [rmC,ryC].forEach(function(s){ if(s&&s.options.length===0) s.add(new Option('Semua Kategori','')); });
+  if(fcM&&fcM.options.length===0) fcM.add(new Option('Semua Bulan',''));
   // fc-month filters the Transaksi list by calendar month (01-12),
   // independent of the year select — combine both to pin down a single
   // month+year, or use month alone to see e.g. every March across years.
-  if(fcM&&fcM.options.length===0){
-    fcM.add(new Option('Semua Bulan',''));
+  // Guarded on <2 (not ===0): the static HTML already ships with the
+  // 'Semua Bulan' placeholder option, so length is 1 on first load, not
+  // 0 — checking ===0 here would (and did) skip populating the 12 months
+  // entirely.
+  if(fcM&&fcM.options.length<2){
     MN.forEach(function(name,i){var mm=String(i+1).padStart(2,'0');fcM.add(new Option(name,mm));});
   }
 
@@ -2448,15 +2456,31 @@ function renderAccts(){
 }
 
 var adKey=null,adAll=[],adShown=50;
+function populateADFilters(){
+  var mSel=document.getElementById('ad-month'),ySel=document.getElementById('ad-year');
+  if(mSel){mSel.innerHTML='<option value="">Semua Bulan</option>'+MN.map(function(name,i){var mm=String(i+1).padStart(2,'0');return '<option value="'+mm+'">'+name+'</option>';}).join('');mSel.value='';}
+  if(ySel){ySel.innerHTML='<option value="">Semua Tahun</option>'+allYears.map(function(y){return '<option value="'+y+'">'+y+'</option>';}).join('');ySel.value='';}
+}
 function openAD(acct){
   adKey=acct;adAll=allTxns.filter(function(t){return t.account===acct;});adShown=50;
   document.getElementById('ad-search').value='';
+  populateADFilters();
   document.getElementById('ad-title').textContent=al(acct);
   var b=acctBals[acct],inc=adAll.filter(function(t){return t.amount>0&&!isTf(t.category);}).reduce(function(s,t){return s+t.amount;},0),exp=adAll.filter(function(t){return t.amount<0&&!isTf(t.category);}).reduce(function(s,t){return s+t.amount;},0);
   document.getElementById('ad-stats').innerHTML='<div class="spill"><div class="splbl">Saldo</div><div class="spval" style="color:'+(b<0?'var(--red)':'var(--green)')+';">'+idr(b)+'</div></div><div class="spill"><div class="splbl">Masuk</div><div class="spval" style="color:var(--green);">+'+fn(inc)+'</div></div><div class="spill"><div class="splbl">Keluar</div><div class="spval" style="color:var(--red);">-'+fn(Math.abs(exp))+'</div></div>';
   renderAD(adAll);switchTab('acct-detail');
 }
-function filterAD(){var q=document.getElementById('ad-search').value.toLowerCase();var f=adAll.filter(function(t){return t.payee.toLowerCase().indexOf(q)>-1||(t.remarks||'').toLowerCase().indexOf(q)>-1||t.category.toLowerCase().indexOf(q)>-1;});adShown=50;renderAD(f);}
+function filterAD(){
+  var q=document.getElementById('ad-search').value.toLowerCase();
+  var mo=(document.getElementById('ad-month')||{}).value||'';
+  var yr=(document.getElementById('ad-year')||{}).value||'';
+  var f=adAll.filter(function(t){
+    if(mo&&t.date.slice(5,7)!==mo)return false;
+    if(yr&&t.date.indexOf(yr)!==0)return false;
+    return t.payee.toLowerCase().indexOf(q)>-1||(t.remarks||'').toLowerCase().indexOf(q)>-1||t.category.toLowerCase().indexOf(q)>-1;
+  });
+  adShown=50;renderAD(f);
+}
 function renderAD(txns){var pg=txns.slice(0,adShown);var h=renderGrp(grpByDate(pg));if(adShown<txns.length)h+='<div class="lmbtn" onclick="adShown+=50;filterAD()">Muat '+(txns.length-adShown)+' lagi</div>';document.getElementById('ad-txns').innerHTML=h||'<div class="empty"><div class="empty-ico">📭</div><div>Tidak ada transaksi</div></div>';}
 // Re-syncs the currently-open Account Detail page (adAll + stats) from
 // the live allTxns/acctBals — needed because openAD() only computes
