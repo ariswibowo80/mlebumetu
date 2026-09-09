@@ -2455,7 +2455,7 @@ function renderAccts(){
   };
 }
 
-var adKey=null,adAll=[],adShown=50;
+var adKey=null,adAll=[],adShown=50,adFiltered=[];
 function populateADFilters(){
   var mSel=document.getElementById('ad-month'),ySel=document.getElementById('ad-year');
   if(mSel){mSel.innerHTML='<option value="">Semua Bulan</option>'+MN.map(function(name,i){var mm=String(i+1).padStart(2,'0');return '<option value="'+mm+'">'+name+'</option>';}).join('');mSel.value='';}
@@ -2468,20 +2468,26 @@ function openAD(acct){
   document.getElementById('ad-title').textContent=al(acct);
   var b=acctBals[acct],inc=adAll.filter(function(t){return t.amount>0&&!isTf(t.category);}).reduce(function(s,t){return s+t.amount;},0),exp=adAll.filter(function(t){return t.amount<0&&!isTf(t.category);}).reduce(function(s,t){return s+t.amount;},0);
   document.getElementById('ad-stats').innerHTML='<div class="spill"><div class="splbl">Saldo</div><div class="spval" style="color:'+(b<0?'var(--red)':'var(--green)')+';">'+idr(b)+'</div></div><div class="spill"><div class="splbl">Masuk</div><div class="spval" style="color:var(--green);">+'+fn(inc)+'</div></div><div class="spill"><div class="splbl">Keluar</div><div class="spval" style="color:var(--red);">-'+fn(Math.abs(exp))+'</div></div>';
-  renderAD(adAll);switchTab('acct-detail');
+  adFiltered=adAll;renderAD();switchTab('acct-detail');
 }
+// Recomputes adFiltered from search/month/year and resets the page size —
+// call this on any filter change. "Muat lagi" itself should NOT call this
+// (it used to, which silently reset adShown back to 50 right after
+// incrementing it, so the button never actually revealed more rows) — it
+// calls renderAD() directly instead, which just re-slices the already-
+// filtered list against the current adShown.
 function filterAD(){
   var q=document.getElementById('ad-search').value.toLowerCase();
   var mo=(document.getElementById('ad-month')||{}).value||'';
   var yr=(document.getElementById('ad-year')||{}).value||'';
-  var f=adAll.filter(function(t){
+  adFiltered=adAll.filter(function(t){
     if(mo&&t.date.slice(5,7)!==mo)return false;
     if(yr&&t.date.indexOf(yr)!==0)return false;
     return t.payee.toLowerCase().indexOf(q)>-1||(t.remarks||'').toLowerCase().indexOf(q)>-1||t.category.toLowerCase().indexOf(q)>-1;
   });
-  adShown=50;renderAD(f);
+  adShown=50;renderAD();
 }
-function renderAD(txns){var pg=txns.slice(0,adShown);var h=renderGrp(grpByDate(pg));if(adShown<txns.length)h+='<div class="lmbtn" onclick="adShown+=50;filterAD()">Muat '+(txns.length-adShown)+' lagi</div>';document.getElementById('ad-txns').innerHTML=h||'<div class="empty"><div class="empty-ico">📭</div><div>Tidak ada transaksi</div></div>';}
+function renderAD(){var pg=adFiltered.slice(0,adShown);var h=renderGrp(grpByDate(pg));if(adShown<adFiltered.length)h+='<div class="lmbtn" onclick="adShown+=50;renderAD()">Muat '+(adFiltered.length-adShown)+' lagi</div>';document.getElementById('ad-txns').innerHTML=h||'<div class="empty"><div class="empty-ico">📭</div><div>Tidak ada transaksi</div></div>';}
 // Re-syncs the currently-open Account Detail page (adAll + stats) from
 // the live allTxns/acctBals — needed because openAD() only computes
 // adAll ONCE when the page opens, so any edit/delete elsewhere (most
