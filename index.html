@@ -4526,11 +4526,37 @@ function loadData() {
         });
       }
 
+      // Flatten the incoming transaction chunks now (moved earlier than
+      // before) so the deletedAccts merge below can check them.
+      var chunks = [];
+      txnSnap.forEach(function(doc) { chunks.push(doc.data()); });
+      chunks.sort(function(a, b) { return (a.chunk || 0) - (b.chunk || 0); });
+      var all = [];
+      chunks.forEach(function(d) { if (Array.isArray(d.txns)) all = all.concat(d.txns); });
+
       // Restore the deleted-accounts list and re-apply it, in case this
       // device deleted an account (or the deletion synced from another
       // device) before allAccts was rebuilt from ACCOUNT_KEYS at load time.
+      //
+      // One exception: if the just-fetched transactions themselves
+      // already contain records for an account the cloud still marks
+      // deleted, trust the transactions over the flag. This covers the
+      // account-was-deleted-then-recreated-with-the-same-name case (e.g.
+      // via "Perbaiki Transfer"'s auto-created accounts, which reuse the
+      // same slugified key) — both the transactions and the cleared flag
+      // are written together in saveData()'s single atomic batch, so if
+      // the transactions made it into this fetch, the flag update did
+      // too; a flag saying "deleted" here would only be correct if it
+      // were from a genuinely newer deletion than these transactions,
+      // which can't be the case since a fresh deletion also removes that
+      // account's transactions in the same batch.
       if (userSnap.exists && userSnap.data().deletedAccts) {
-        Object.assign(deletedAccts, userSnap.data().deletedAccts);
+        var acctsInIncomingTxns = {};
+        all.forEach(function(t) { if (t.account) acctsInIncomingTxns[t.account] = true; });
+        var cloudDeleted = userSnap.data().deletedAccts;
+        Object.keys(cloudDeleted).forEach(function(k) {
+          if (cloudDeleted[k] && !acctsInIncomingTxns[k]) deletedAccts[k] = true;
+        });
         saveDeletedAccts();
         Object.keys(deletedAccts).forEach(function(k) {
           if (!deletedAccts[k]) return;
@@ -4554,13 +4580,6 @@ function loadData() {
         renderDash();
         return;
       }
-
-      var chunks = [];
-      txnSnap.forEach(function(doc) { chunks.push(doc.data()); });
-      chunks.sort(function(a, b) { return (a.chunk || 0) - (b.chunk || 0); });
-
-      var all = [];
-      chunks.forEach(function(d) { if (Array.isArray(d.txns)) all = all.concat(d.txns); });
 
       if (all.length > 0) {
         applyLoaded(all);
