@@ -1193,6 +1193,15 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
           <div style="font-size:9px;color:var(--txm);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;font-family:'Inter';">Catatan</div>
           <div id="txnd-remarks" style="font-size:13px;color:var(--txd);font-family:'Inter';"></div>
         </div>
+        <div id="txnd-pair-wrap" style="margin-top:10px;background:var(--sur);border-radius:10px;padding:11px;display:none;cursor:pointer;" onclick="openTransferPair()">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <div style="min-width:0;">
+              <div style="font-size:9px;color:var(--txm);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;font-family:'Inter';">Pasangan Transfer</div>
+              <div id="txnd-pair-info" style="font-size:13px;font-weight:600;font-family:'Manrope';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+            </div>
+            <span class="ms" style="font-size:18px;color:var(--txm);flex-shrink:0;">chevron_right</span>
+          </div>
+        </div>
       </div>
       <div style="padding:0 20px 8px;display:flex;gap:10px;">
         <button class="btn btng" style="flex:1;" onclick="closeDrawer('txnd-dover')">Tutup</button>
@@ -3379,7 +3388,27 @@ function openTxnDetail(id){
   document.getElementById('txnd-amt').textContent=(t.amount>=0?'+':'')+fn(t.amount);document.getElementById('txnd-amt').style.color=fg;
   document.getElementById('txnd-acct').textContent=al(t.account);document.getElementById('txnd-cat').textContent=t.category;
   var rw=document.getElementById('txnd-remarks-wrap');if(t.remarks){rw.style.display='block';document.getElementById('txnd-remarks').textContent=t.remarks;}else{rw.style.display='none';}
+  var pw=document.getElementById('txnd-pair-wrap');
+  if(pw){
+    var pair=isTf(t.category)?findTransferPair(t):null;
+    if(pair){
+      pw.style.display='block';
+      document.getElementById('txnd-pair-info').textContent=(pair.amount>=0?'+':'')+fn(pair.amount)+' · '+al(pair.account);
+    }else{
+      pw.style.display='none';
+    }
+  }
   openDrawer('txnd-dover');
+}
+// Jumps the detail drawer to this transfer's paired leg (e.g. from the
+// inward/masuk side, jump to the outward/keluar side so its "Ubah jadi
+// Pengeluaran" button — only shown on the outward leg — becomes reachable
+// without hunting for the other transaction in the list manually).
+function openTransferPair(){
+  if(!txndCurrent||!isTf(txndCurrent.category))return;
+  var pair=findTransferPair(txndCurrent);
+  if(!pair){showToast('Pasangan transaksi tidak ditemukan');return;}
+  openTxnDetail(pair._id);
 }
 var editType='expense';
 function setEditType(type){
