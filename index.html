@@ -2732,6 +2732,11 @@ function renderCatR(){
 // category breakdown" behavior as the chart, rather than jumping
 // straight into the category breakdown with no in-between choice.
 function showPeriodCardDetail(ev,periodKey,incomeVal,expenseVal,isYear){
+  ev.stopPropagation(); // otherwise this same click bubbles to the
+  // document-level "click outside closes the tooltip" listener below and
+  // immediately hides the popup we're about to show (canvas clicks don't
+  // have this problem since that listener already excludes canvases —
+  // cards need the same exclusion, done here instead).
   var type=(document.getElementById(isYear?'ry-type':'rm-type')||{}).value||'';
   var rows=[];
   if(type!=='expense')rows.push({label:'Pemasukan',color:'#4ade80',value:'+ Rp '+fn(incomeVal),onClick:function(){openTxnList('income',periodKey,null,'list');}});
