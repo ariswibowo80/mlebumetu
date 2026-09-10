@@ -813,6 +813,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <div class="spills" id="ad-stats"></div>
       <div class="sbar"><span class="ms" style="font-size:16px;color:var(--txm);">search</span><input type="text" id="ad-search" placeholder="Cari…" oninput="filterAD()"/></div>
       <div style="display:flex;gap:7px;padding:8px 16px;overflow-x:auto;">
+        <select id="ad-type" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Tipe</option><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option></select>
         <select id="ad-month" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Bulan</option></select>
         <select id="ad-year" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Tahun</option></select>
       </div>
@@ -869,13 +870,14 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     </div>
     <div class="pcontent">
       <div class="rtabs">
-        <div class="rtab active" id="rt-cat" onclick="catMode='expense';setRT('cat')">Kategori</div>
+        <div class="rtab active" id="rt-cat" onclick="setRT('cat')">Kategori</div>
         <div class="rtab" id="rt-monthly" onclick="setRT('monthly')">Bulanan</div>
         <div class="rtab" id="rt-yearly" onclick="setRT('yearly')">Tahunan</div>
       </div>
       <!-- Category -->
       <div id="rp-cat">
         <div style="padding:12px 16px 0;display:flex;gap:8px;flex-wrap:wrap;">
+          <select id="rc-type" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="expense" selected>Pengeluaran</option><option value="income">Pemasukan</option><option value="all">Semua</option></select>
           <select id="rc-yr" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="">Semua Tahun</option></select>
           <select id="rc-mo" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="">Semua Bulan</option><option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option><option value="04">Apr</option><option value="05">Mei</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Ags</option><option value="09">Sep</option><option value="10">Okt</option><option value="11">Nov</option><option value="12">Des</option></select>
           <select id="rc-ac" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="">Semua Akun</option></select>
@@ -1232,7 +1234,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         <div class="fg"><label class="flbl">Tanggal</label><input class="fi" type="date" id="ed-date"/></div>
         <div class="fg"><label class="flbl">Jumlah (IDR)</label><input class="fi" type="number" id="ed-amt" min="0"/></div>
       </div>
-      <div class="fg"><label class="flbl">Payee</label><input class="fi" type="text" id="ed-pay"/></div>
+      <div class="fg"><label class="flbl">Payee</label><input class="fi" type="text" id="ed-pay" list="payee-dl"/></div>
       <div class="fg"><label class="flbl">Kategori</label><select class="fi" id="ed-cat" style="display:none;"></select><div class="fi cat-picker-btn" id="ed-cat-btn" onclick="openCatPicker('ed-cat')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;"><span id="ed-cat-btn-txt" style="color:var(--txm);">Pilih kategori</span><span class="ms" style="font-size:18px;color:var(--txm);">expand_more</span></div></div>
       <div class="fg"><label class="flbl">Catatan</label><input class="fi" type="text" id="ed-rem"/></div>
       <div id="ed-convert-wrap" style="margin-bottom:14px;display:none;">
@@ -2229,8 +2231,7 @@ function initDropdowns(){
   });
   if(allAccts.length>1&&tfT)tfT.selectedIndex=1;
   // Populate payee datalist
-  var dl=document.getElementById('payee-dl');
-  if(dl){var pays=[...new Set(allTxns.map(function(t){return t.payee;}))].sort();dl.innerHTML=pays.map(function(p){return'<option value="'+p+'">';}).join('');}
+  refreshPayeeDatalist();
   allCats.filter(function(c){return!isTf(c);}).forEach(function(c){[aC,edC].forEach(function(s){if(s)s.add(new Option(c,c));});});
   // rm-cat/ry-cat drive expense/income charts that always exclude transfer
   // categories, so leave transfer categories out of these two pickers —
@@ -2563,9 +2564,10 @@ function renderAccts(){
 
 var adKey=null,adAll=[],adShown=50,adFiltered=[];
 function populateADFilters(){
-  var mSel=document.getElementById('ad-month'),ySel=document.getElementById('ad-year');
+  var mSel=document.getElementById('ad-month'),ySel=document.getElementById('ad-year'),tSel=document.getElementById('ad-type');
   if(mSel){mSel.innerHTML='<option value="">Semua Bulan</option>'+MN.map(function(name,i){var mm=String(i+1).padStart(2,'0');return '<option value="'+mm+'">'+name+'</option>';}).join('');mSel.value='';}
   if(ySel){ySel.innerHTML='<option value="">Semua Tahun</option>'+allYears.map(function(y){return '<option value="'+y+'">'+y+'</option>';}).join('');ySel.value='';}
+  if(tSel)tSel.value='';
 }
 function openAD(acct){
   adKey=acct;adAll=allTxns.filter(function(t){return t.account===acct;});adShown=50;
@@ -2586,9 +2588,12 @@ function filterAD(){
   var q=document.getElementById('ad-search').value.toLowerCase();
   var mo=(document.getElementById('ad-month')||{}).value||'';
   var yr=(document.getElementById('ad-year')||{}).value||'';
+  var ty=(document.getElementById('ad-type')||{}).value||'';
   adFiltered=adAll.filter(function(t){
     if(mo&&t.date.slice(5,7)!==mo)return false;
     if(yr&&t.date.indexOf(yr)!==0)return false;
+    if(ty==='expense'&&!(t.amount<0&&!isTf(t.category)))return false;
+    if(ty==='income'&&!(t.amount>0&&!isTf(t.category)))return false;
     return t.payee.toLowerCase().indexOf(q)>-1||(t.remarks||'').toLowerCase().indexOf(q)>-1||t.category.toLowerCase().indexOf(q)>-1;
   });
   adShown=50;renderAD();
@@ -2679,8 +2684,17 @@ function clearCatPeriod(){
 
 function renderCatR(){
   var yr=(document.getElementById('rc-yr')||{}).value||'';var mo=(document.getElementById('rc-mo')||{}).value||'';var ac=(document.getElementById('rc-ac')||{}).value||'';
+  var typeVal=(document.getElementById('rc-type')||{}).value||'expense';
+  var isAll=typeVal==='all';
+  // catMode stays the single source of truth other functions (openCD,
+  // openPayeeReport, the Dashboard's own category widgets) read from —
+  // in "Semua" mode there's no one fixed side, so it gets set per-click
+  // below instead, based on whichever category was actually tapped.
+  if(!isAll)catMode=typeVal;
   var isIncome=catMode==='income';
-  var txns=allTxns.filter(function(t){return(isIncome?t.amount>0:t.amount<0)&&!isTf(t.category);});
+  var txns=isAll
+    ? allTxns.filter(function(t){return!isTf(t.category);})
+    : allTxns.filter(function(t){return(isIncome?t.amount>0:t.amount<0)&&!isTf(t.category);});
   var yrSel=document.getElementById('rc-yr'),moSel=document.getElementById('rc-mo');
   var periodActiveEl=document.getElementById('rc-period-active'),periodLabelEl=document.getElementById('rc-period-label');
   var mf;
@@ -2706,6 +2720,33 @@ function renderCatR(){
     mf=yr&&mo?yr+'-'+mo:(yr||'');
   }
   if(ac)txns=txns.filter(function(t){return t.account===ac;});
+
+  if(isAll){
+    // Combined view: each category keeps its own net sign (a category is
+    // realistically either expense- or income-flavored, rarely a genuine
+    // mix) rather than forcing one global sign for the whole widget.
+    var bcSigned={};
+    txns.forEach(function(t){bcSigned[t.category]=(bcSigned[t.category]||0)+t.amount;});
+    var sortedAll=Object.entries(bcSigned).sort(function(a,b){return Math.abs(b[1])-Math.abs(a[1]);});
+    var netTotal=sortedAll.reduce(function(s,e){return s+e[1];},0);
+    var titleElAll=document.getElementById('rc-ctitle');
+    if(titleElAll)titleElAll.textContent='Distribusi Semua Kategori';
+    if(catCI)catCI.destroy();
+    var canvasAll=document.getElementById('catChart');if(!canvasAll)return;
+    catCI=new Chart(canvasAll,{type:'doughnut',data:{labels:sortedAll.slice(0,10).map(function(e){return e[0];}),datasets:[{data:sortedAll.slice(0,10).map(function(e){return Math.abs(e[1]);}),backgroundColor:CC,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false},centerText:{text:(netTotal>=0?'+':'-')+'Rp '+fn(Math.abs(netTotal)),subLabel:'Net',color:netTotal>=0?'#006e1c':'#b7131a'}}}});
+    var elAll=document.getElementById('rp-clist');if(!elAll)return;
+    var maxAbsAll=sortedAll.length?Math.abs(sortedAll[0][1]):1;
+    elAll.innerHTML=sortedAll.map(function(e,i){
+      var cat=e[0].replace(/'/g,"\\'"),amt=e[1],catIsIncome=amt>=0;
+      var pct=netTotal!==0?(Math.abs(amt)/sortedAll.reduce(function(s,x){return s+Math.abs(x[1]);},0)*100).toFixed(1):0;
+      // Sets catMode to match THIS category's own sign before drilling
+      // down, so openCatChoice/openCD/openPayeeReport (all still binary
+      // expense-or-income) stay correct even from the combined view.
+      return '<div class="citem" onclick="catMode=\''+(catIsIncome?'income':'expense')+'\';openCatChoice(\''+cat+'\',\''+mf+'\',\''+ac+'\')"><div class="cdot" style="background:'+cc(i)+';"></div><div style="flex:1;min-width:0;"><div class="cname">'+e[0]+'</div><div style="margin-top:4px;height:3px;background:var(--bdr);border-radius:2px;overflow:hidden;"><div style="height:100%;width:'+(Math.abs(amt)/maxAbsAll*100).toFixed(1)+'%;background:'+cc(i)+';border-radius:2px;"></div></div></div><div class="cright"><div class="camt" style="color:'+(catIsIncome?'var(--green)':'var(--red)')+';">'+(catIsIncome?'+':'-')+fn(Math.abs(amt))+'</div><div class="cpct">'+pct+'%</div></div><svg class="cchev" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>';
+    }).join('')||'<div class="empty">Tidak ada data</div>';
+    return;
+  }
+
   var bc={};txns.forEach(function(t){bc[t.category]=(bc[t.category]||0)+Math.abs(t.amount);});
   var sorted=Object.entries(bc).sort(function(a,b){return b[1]-a[1];});
   var total=sorted.reduce(function(s,e){return s+e[1];},0);
@@ -4059,6 +4100,7 @@ function openEditMode(){
     openEditTransferMode(t);
     return;
   }
+  refreshPayeeDatalist();
 
   // Always rebuild dropdowns from the current allAccts/allCats so they
   // never show stale/empty options (e.g. right after a cloud sync).
@@ -4265,8 +4307,14 @@ function deleteTxn(){
 
 // ── ADD TRANSACTION ───────────────────────────────
 var addType='expense';
-function openAddDrawer(){setAddType('expense');document.getElementById('a-date').value=new Date().toISOString().slice(0,10);document.getElementById('a-amt').value='';document.getElementById('a-pay').value='';document.getElementById('a-rem').value='';updateAddAccDisplay();openDrawer('add-dover');}
-function openAddDrawerType(type){setAddType(type);document.getElementById('a-date').value=new Date().toISOString().slice(0,10);document.getElementById('a-amt').value='';document.getElementById('a-pay').value='';document.getElementById('a-rem').value='';updateAddAccDisplay();openDrawer('add-dover');}
+function refreshPayeeDatalist(){
+  var dl=document.getElementById('payee-dl');
+  if(!dl)return;
+  var pays=[...new Set(allTxns.map(function(t){return t.payee;}))].filter(Boolean).sort();
+  dl.innerHTML=pays.map(function(p){return'<option value="'+p.replace(/"/g,'&quot;')+'">';}).join('');
+}
+function openAddDrawer(){refreshPayeeDatalist();setAddType('expense');document.getElementById('a-date').value=new Date().toISOString().slice(0,10);document.getElementById('a-amt').value='';document.getElementById('a-pay').value='';document.getElementById('a-rem').value='';updateAddAccDisplay();openDrawer('add-dover');}
+function openAddDrawerType(type){refreshPayeeDatalist();setAddType(type);document.getElementById('a-date').value=new Date().toISOString().slice(0,10);document.getElementById('a-amt').value='';document.getElementById('a-pay').value='';document.getElementById('a-rem').value='';updateAddAccDisplay();openDrawer('add-dover');}
 function setAddType(type){
   addType=type;
   var colors={expense:'var(--primary)',income:'var(--green)'};
