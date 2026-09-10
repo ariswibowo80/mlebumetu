@@ -96,6 +96,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Inter',s
 .uav{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--primary),#db322f);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;overflow:hidden;flex-shrink:0;font-family:'Manrope';}
 .uav img{width:100%;height:100%;border-radius:50%;object-fit:cover;}
 #sync-indicator{font-size:15px;padding:4px;cursor:default;color:var(--txm);}
+.sync-ind{font-size:15px;padding:4px;cursor:pointer;color:var(--txm);}
 
 /* ===== USER MENU ===== */
 .umenu{position:fixed;top:calc(var(--st) + 58px);right:12px;background:var(--card);border:1px solid var(--bdr);border-radius:16px;padding:8px;z-index:300;min-width:190px;display:none;box-shadow:0 8px 32px rgba(0,0,0,.1);}
@@ -724,7 +725,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         <span class="logo-text">Mlebumetu</span>
       </div>
       <div style="display:flex;gap:6px;align-items:center;">
-        <span id="sync-indicator" title="Sync status" onclick="refreshSync()" style="cursor:pointer;">☁</span>
+        <span id="sync-indicator" class="sync-ind" title="Sync status" onclick="refreshSync()" style="cursor:pointer;">☁</span>
         <div class="uchip" onclick="toggleUMenu()" id="uchip">
           <span class="uchip-n" id="chip-n">User</span>
           <div class="uav" id="chip-av">U</div>
@@ -783,7 +784,8 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <div class="phdr">
       <div class="bbtn" onclick="switchTab('dashboard')"><span class="ms">home</span></div>
       <div class="phdr-t">Akun</div>
-      <div style="display:flex;gap:7px;">
+      <div style="display:flex;gap:7px;align-items:center;">
+        <span class="sync-ind" title="Sync status" onclick="refreshSync()">☁</span>
         <div class="ibtn" onclick="openAddAcctModal()" title="Tambah Akun" style="background:var(--green-bg);border-color:rgba(0,110,28,.2);color:var(--green);"><span class="ms">add</span></div>
         <div class="ibtn" style="background:var(--primary-light);border-color:rgba(183,19,26,.2);color:var(--primary);" onclick="openAddDrawer()"><span class="ms">add_card</span></div>
         <div class="ibtn" onclick="openTfDrawer()"><span class="ms">swap_horiz</span></div>
@@ -801,7 +803,8 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <div class="phdr">
       <div class="bbtn" onclick="backToAccts()"><span class="ms">arrow_back</span></div>
       <div class="phdr-t" id="ad-title"></div>
-      <div style="display:flex;gap:7px;">
+      <div style="display:flex;gap:7px;align-items:center;">
+        <span class="sync-ind" title="Sync status" onclick="refreshSync()">☁</span>
         <div class="ibtn" style="background:var(--primary-light);border-color:rgba(183,19,26,.2);color:var(--primary);" onclick="openAddDrawer()"><span class="ms">add</span></div>
         <div class="ibtn" onclick="openSideMenu()"><span class="ms">menu</span></div>
       </div>
@@ -822,7 +825,8 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <div class="phdr">
       <div class="bbtn" onclick="switchTab('dashboard')"><span class="ms">home</span></div>
       <div class="phdr-t">Transaksi</div>
-      <div style="display:flex;gap:7px;">
+      <div style="display:flex;gap:7px;align-items:center;">
+        <span class="sync-ind" title="Sync status" onclick="refreshSync()">☁</span>
         <div class="ibtn" style="background:var(--primary-light);border-color:rgba(183,19,26,.2);color:var(--primary);" onclick="openAddDrawer()"><span class="ms">add</span></div>
         <div class="ibtn" onclick="openTfDrawer()"><span class="ms">swap_horiz</span></div>
         <div class="ibtn" onclick="openSideMenu()"><span class="ms">menu</span></div>
@@ -857,7 +861,8 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <div class="phdr">
       <div class="bbtn" onclick="switchTab('dashboard')"><span class="ms">home</span></div>
       <div class="phdr-t">Laporan</div>
-      <div style="display:flex;gap:7px;">
+      <div style="display:flex;gap:7px;align-items:center;">
+        <span class="sync-ind" title="Sync status" onclick="refreshSync()">☁</span>
         <div class="ibtn" onclick="switchTab('transactions')"><span class="ms">filter_list</span></div>
         <div class="ibtn" onclick="openSideMenu()"><span class="ms">menu</span></div>
       </div>
@@ -962,7 +967,8 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <div class="phdr">
       <div class="bbtn" onclick="switchTab('dashboard')"><span class="ms">home</span></div>
       <div class="phdr-t">Lainnya</div>
-      <div style="display:flex;gap:7px;">
+      <div style="display:flex;gap:7px;align-items:center;">
+        <span class="sync-ind" title="Sync status" onclick="refreshSync()">☁</span>
         <div class="ibtn" style="background:var(--primary-light);border-color:rgba(183,19,26,.2);color:var(--primary);" onclick="openAddDrawer()"><span class="ms">add</span></div>
         <div class="ibtn" onclick="openSideMenu()"><span class="ms">menu</span></div>
       </div>
@@ -2186,23 +2192,50 @@ function initDropdowns(){
 
 // ── NAVIGATION ────────────────────────────────────
 var curTab='dashboard';
-function switchTab(t){
+var _mlbAway=false; // true whenever the user is on any non-Dashboard tab or acct-detail
+function switchTab(t,fromPop){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.ntab').forEach(function(n){n.classList.remove('active');});
-  if(t==='acct-detail'){document.getElementById('pg-acct-detail').classList.add('active');return;}
+  if(t==='acct-detail'){
+    document.getElementById('pg-acct-detail').classList.add('active');
+    if(!fromPop){
+      // Cover "left Dashboard" too, in case acct-detail was opened
+      // directly from Dashboard without visiting the Akun tab first —
+      // otherwise a single back press here would land on the Akun tab
+      // with no history entry backing it, and the *next* back press
+      // would exit straight past Dashboard instead of stopping there.
+      if(!_mlbAway){_mlbAway=true;mlbPush();}
+      mlbPush();
+    }
+    return;
+  }
   document.getElementById('pg-'+t).classList.add('active');
   var nt=document.getElementById('nt-'+t);if(nt)nt.classList.add('active');
+  // One history entry covers "away from Dashboard" as a whole rather
+  // than one per tab — switching between non-Dashboard tabs doesn't push
+  // another entry, so a single back press from any tab returns straight
+  // to Dashboard (the usual Android bottom-nav convention) instead of
+  // stepping backward through every tab visited along the way.
+  if(t==='dashboard'){
+    if(_mlbAway&&!fromPop)mlbPopIfNeeded();
+    _mlbAway=false;
+  }else{
+    if(!_mlbAway&&!fromPop)mlbPush();
+    _mlbAway=true;
+  }
   curTab=t;
   if(t==='accounts')renderAccts();
   if(t==='transactions')filterTxns();
   if(t==='reports')renderCatR();
   if(t==='more')updateUserUI();
 }
-function backToAccts(){
+function backToAccts(fromPop){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.getElementById('pg-accounts').classList.add('active');
   var nt=document.getElementById('nt-accounts');if(nt)nt.classList.add('active');
   curTab='accounts';
+  _mlbAway=true; // still away from Dashboard, just one level shallower than acct-detail
+  if(!fromPop)mlbPopIfNeeded(); // consumes the entry pushed when acct-detail was opened
 }
 
 // ── MONTH SELECTOR ────────────────────────────────
@@ -2945,7 +2978,7 @@ function renderMonR(){
     var maxVal=Math.max(i,e)||1;
     var barI=Math.round(i/maxVal*100);
     var barE=Math.round(e/maxVal*100);
-    return '<div style="background:white;border-radius:16px;padding:16px;margin-top:10px;">' +
+    return '<div onclick="viewMonthDetail(\''+m+'\')" style="background:white;border-radius:16px;padding:16px;margin-top:10px;cursor:pointer;">' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;">' +
         '<div>' +
           '<div style="font-family:Manrope;font-size:16px;font-weight:800;">'+MN[parseInt(p[1])-1]+' '+p[0]+'</div>' +
@@ -3178,7 +3211,7 @@ function renderYrR(){
       var e=by[y].e,i=by[y].i,n=i-e;
       var sr=i>0?Math.round(n/i*100):0;
       var maxVal=Math.max(i,e)||1;
-      return '<div style="background:white;border-radius:16px;padding:16px;margin-top:10px;">' +
+      return '<div onclick="viewYearDetail(\''+y+'\')" style="background:white;border-radius:16px;padding:16px;margin-top:10px;cursor:pointer;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">' +
           '<div>' +
             '<div style="font-family:Manrope;font-size:24px;font-weight:800;">'+y+'</div>' +
@@ -4150,6 +4183,7 @@ function closeFab(){
 function openSideMenu(){
   document.getElementById('sidemenu').style.left='0';
   document.getElementById('sidemenu-overlay').style.display='block';
+  mlbPush();
   if(currentUser){
     var nameEl=document.getElementById('sm-user-name-full');
     var emailEl=document.getElementById('sm-user-name');
@@ -4172,12 +4206,53 @@ function openSideMenu(){
   var map={dashboard:'overview',transactions:'transactions',reports:'reports',accounts:'accounts'};
   if(map[curTab]){var el=document.getElementById('sm-'+map[curTab]);if(el)el.classList.add('active');}
 }
-function closeSideMenu(){document.getElementById('sidemenu').style.left='-280px';document.getElementById('sidemenu-overlay').style.display='none';}
+function closeSideMenu(fromPop){document.getElementById('sidemenu').style.left='-280px';document.getElementById('sidemenu-overlay').style.display='none';if(!fromPop)mlbPopIfNeeded();}
 function smGo(tab){closeSideMenu();setTimeout(function(){switchTab(tab);},280);}
 
 // ── DRAWERS ───────────────────────────────────────
-function openDrawer(id){var e=document.getElementById(id);e.style.display='flex';requestAnimationFrame(function(){e.classList.add('open');});}
-function closeDrawer(id){var e=document.getElementById(id);e.classList.remove('open');setTimeout(function(){e.style.display='none';},300);}
+// ── BACK BUTTON / HISTORY NAVIGATION ──────────────
+// Without any history entries, Android's hardware back button (and a
+// browser's back gesture) has nothing to go back to inside this single-
+// page app and exits/backgrounds it immediately. We push one history
+// entry per "level" opened (a drawer, the side menu, or leaving
+// Dashboard for another tab) so back closes/returns one level at a time
+// instead, matching normal app navigation expectations.
+//
+// _mlbDepth tracks how many of those entries are currently "ours" and
+// still pending a pop; _mlbSyncing guards against the popstate handler
+// reacting to a pop WE triggered ourselves (see mlbPopIfNeeded) as if it
+// were a genuine back-button press, which would otherwise cascade into
+// an extra, unwanted navigation step.
+var _mlbDepth = 0;
+var _mlbSyncing = false;
+function mlbPush(){ _mlbDepth++; try{ window.history.pushState({mlb:_mlbDepth}, ''); }catch(e){} }
+function mlbPopIfNeeded(){
+  // Call this whenever something we pushed a state for gets closed
+  // through a non-back-button path (an X button, backdrop tap, a save
+  // action, etc.) so the history stack stays in sync with what's
+  // actually on screen — otherwise the *next* real back-button press
+  // would consume that stale entry and skip a level.
+  if(_mlbDepth<=0)return;
+  _mlbDepth--;
+  _mlbSyncing=true;
+  try{ window.history.back(); }catch(e){ _mlbSyncing=false; }
+}
+window.addEventListener('popstate', function(){
+  if(_mlbSyncing){ _mlbSyncing=false; return; }
+  if(_mlbDepth>0)_mlbDepth--;
+  var openDover=document.querySelector('.dover.open');
+  if(openDover){ closeDrawer(openDover.id,true); return; }
+  var smOv=document.getElementById('sidemenu-overlay');
+  if(smOv && smOv.style.display==='block'){ closeSideMenu(true); return; }
+  var um=document.getElementById('umenu');
+  if(um && um.classList.contains('open')){ um.classList.remove('open'); return; }
+  if(curTab==='acct-detail'){ backToAccts(true); return; }
+  if(curTab!=='dashboard'){ switchTab('dashboard',true); return; }
+  // Already on Dashboard with nothing open — this was the outermost
+  // level, so let the OS/browser handle the actual exit from here.
+});
+function openDrawer(id){var e=document.getElementById(id);e.style.display='flex';requestAnimationFrame(function(){e.classList.add('open');});mlbPush();}
+function closeDrawer(id,fromPop){var e=document.getElementById(id);e.classList.remove('open');setTimeout(function(){e.style.display='none';},300);if(!fromPop)mlbPopIfNeeded();}
 
 // ── CSV IMPORT ────────────────────────────────────
 var impRows=[],impHeaders=[];
@@ -4732,7 +4807,7 @@ function handleShortcutAction(){
   else if (action === 'transfer') openTfDrawer();
 }
 
-function showSyncIndicator(state){var el=document.getElementById('sync-indicator');if(!el)return;var icons={syncing:'↻',synced:'☁',offline:'⚠'};var colors={syncing:'var(--txm)',synced:'var(--green)',offline:'orange'};el.textContent=icons[state]||'☁';el.style.color=colors[state]||'var(--txm)';}
+function showSyncIndicator(state){var els=document.querySelectorAll('.sync-ind');if(!els.length)return;var icons={syncing:'↻',synced:'☁',offline:'⚠'};var colors={syncing:'var(--txm)',synced:'var(--green)',offline:'orange'};var txt=icons[state]||'☁',col=colors[state]||'var(--txm)';els.forEach(function(el){el.textContent=txt;el.style.color=col;});}
 
 // ── GOOGLE / BOOT ─────────────────────────────────
 var googleInited=false;
@@ -4808,8 +4883,8 @@ function movePagesBackToApp() {
 
 // ── Override switchTab for desktop ──────────────
 var _origSwitchTab = switchTab;
-switchTab = function(t) {
-  _origSwitchTab(t);
+switchTab = function(t,fromPop) {
+  _origSwitchTab(t,fromPop);
   updateDesktopNav(t);
   if (isDesktop) {
     movePageToDesktop();
@@ -5776,9 +5851,9 @@ openFirebaseSetup = function() {
 // ── REFRESH SYNC ──────────────────────────────────
 function refreshSync() {
   var icon = document.getElementById('refresh-icon');
-  var si   = document.getElementById('sync-indicator');
+  var sis  = document.querySelectorAll('.sync-ind');
   if (icon) icon.style.animation = 'spin 1s linear infinite';
-  if (si)   { si.textContent = '↻'; si.style.color = 'var(--txm)'; }
+  sis.forEach(function(si){ si.textContent = '↻'; si.style.color = 'var(--txm)'; });
   showToast('↻ Memuat ulang data…');
   // Clear and reload
   allTxns = [];
