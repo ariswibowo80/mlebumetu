@@ -3595,6 +3595,11 @@ function autoCreateRemainingTransferPairs(){
       var label=g.name||('Akun Baru '+(genericCounter++));
       var acctKey=label.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'')||('acct_'+Date.now()+'_'+Math.random().toString(36).slice(2,6));
       if(allAccts.indexOf(acctKey)>-1)acctKey=acctKey+'_'+Date.now();
+      // A previously-deleted account can slugify to this same key (same
+      // name). If deletedAccts still marks it, applyLoaded() would wipe
+      // every transaction we're about to create for it on the very next
+      // load/refresh — clear the flag now that it's genuinely back.
+      if(deletedAccts[acctKey]){delete deletedAccts[acctKey];saveDeletedAccts();}
       allAccts.push(acctKey);
       RAW_DATA[acctKey]=[];
       acctBals[acctKey]=0;
@@ -3728,6 +3733,11 @@ function submitTransferRepair(){
       if(!newName){skipped++;return;} // no name typed — treat like "Lewati" rather than guessing
       var key=newName.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'')||('acct_'+Date.now());
       if(allAccts.indexOf(key)>-1)key=key+'_'+Date.now();
+      // See saveEditTransfer()'s identical guard: a deleted account can
+      // slugify to this same key, and leaving deletedAccts[key] set would
+      // make applyLoaded() silently drop this account (and the orphan
+      // pairs we're creating for it) on the next load/refresh.
+      if(deletedAccts[key]){delete deletedAccts[key];saveDeletedAccts();}
       allAccts.push(key);
       RAW_DATA[key]=[];
       acctBals[key]=0;
@@ -5567,6 +5577,11 @@ function submitAcctForm() {
     if (!key) key = 'acct_' + Date.now();
     // Ensure unique key
     if (allAccts.indexOf(key) > -1) key = key + '_' + Date.now();
+    // Same reasoning as the transfer-fix account-creation paths: a
+    // deleted account can slugify to this same key, and leaving
+    // deletedAccts[key] set would make applyLoaded() silently drop this
+    // "new" account on the next load/refresh.
+    if (deletedAccts[key]) { delete deletedAccts[key]; saveDeletedAccts(); }
 
     // Add account — a brand-new account has no transactions yet, so its
     // starting balance and current balance are the same value.
