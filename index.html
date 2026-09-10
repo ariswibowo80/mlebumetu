@@ -1229,6 +1229,9 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         <div class="fg"><label class="flbl">Jumlah</label><input class="fi" type="number" id="ed-tf-am" min="0"/></div>
       </div>
       <div class="fg"><label class="flbl">Catatan</label><input class="fi" type="text" id="ed-tf-rm"/></div>
+      <div id="ed-tf-convert-wrap" style="margin-bottom:14px;">
+        <div class="lmbtn" id="ed-tf-convert-btn" onclick="convertTransferToExpense()" style="color:var(--primary);border-color:var(--primary);">↪️ Ubah jadi Pengeluaran</div>
+      </div>
       <div class="factions">
         <button class="btn btng" onclick="cancelEdit()">Batal</button>
         <button class="btn btnp" onclick="saveEditTransfer()">Simpan</button>
@@ -3822,7 +3825,50 @@ function openEditTransferMode(t){
   document.getElementById('ed-tf-am').value=Math.abs(t.amount);
   document.getElementById('ed-tf-rm').value=t.remarks||'';
 
+  // "Ubah jadi Pengeluaran" only makes sense from the outward (money-out)
+  // leg — converting the inward side would require flipping its sign,
+  // which isn't what "expense" means here. Hide it on the inward leg
+  // rather than offering an action that doesn't match its label.
+  var convertWrap=document.getElementById('ed-tf-convert-wrap');
+  if(convertWrap)convertWrap.style.display=(t.amount<0)?'block':'none';
+
   if(!pair)console.warn('Transfer pair not found for transaction:',t);
+}
+// Converts the outward leg of a transfer into a plain expense: the linked
+// inward leg (in the destination account) is deleted, this transaction's
+// _tid is cleared so it's no longer recognized as a transfer, and its
+// category falls back to the first non-transfer category (the person
+// then picks the real one via the normal edit form, opened right after —
+// reusing openEditMode() rather than duplicating its field-population
+// logic here).
+function convertTransferToExpense(){
+  if(!txndCurrent)return;
+  var t=txndCurrent;
+  if(!isTf(t.category)||t.amount>=0)return;
+  var pair=findTransferPair(t);
+  var msg=pair
+    ? 'Ubah jadi pengeluaran biasa? Transaksi pasangannya (sisi masuk di '+al(pair.account)+') akan dihapus.'
+    : 'Ubah jadi pengeluaran biasa?';
+  if(!confirm(msg))return;
+
+  if(pair){
+    allTxns.splice(allTxns.indexOf(pair),1);
+    acctBals[pair.account]=(acctBals[pair.account]||0)-pair.amount;
+    RAW_DATA[pair.account]=(RAW_DATA[pair.account]||[]).filter(function(r){return!(r.date===pair.date&&r.payee===pair.payee&&r.amount===pair.amount);});
+  }
+
+  delete t._tid;
+  t.category=allCats.filter(function(c){return!isTf(c);})[0]||'Lainnya';
+  // amount/account/sign are already correct for an expense (this button
+  // only shows on the outward/negative leg), so acctBals for t's own
+  // account doesn't need adjusting — only the deleted pair's account does.
+
+  allTxns.forEach(function(x,i){x._id=i;});
+  refreshCatYearLists();
+  saveData();
+  renderDash();if(curTab==='transactions')renderTxns();refreshAD();
+  showToast('✅ Diubah jadi pengeluaran — pilih kategori yang sesuai');
+  openEditMode(); // t.category is no longer a transfer category, so this now opens the normal edit form
 }
 function openEditMode(){
   if(!txndCurrent)return;
