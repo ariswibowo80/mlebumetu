@@ -1235,6 +1235,16 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <div class="fg"><label class="flbl">Payee</label><input class="fi" type="text" id="ed-pay"/></div>
       <div class="fg"><label class="flbl">Kategori</label><select class="fi" id="ed-cat" style="display:none;"></select><div class="fi cat-picker-btn" id="ed-cat-btn" onclick="openCatPicker('ed-cat')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;"><span id="ed-cat-btn-txt" style="color:var(--txm);">Pilih kategori</span><span class="ms" style="font-size:18px;color:var(--txm);">expand_more</span></div></div>
       <div class="fg"><label class="flbl">Catatan</label><input class="fi" type="text" id="ed-rem"/></div>
+      <div id="ed-convert-wrap" style="margin-bottom:14px;display:none;">
+        <div class="lmbtn" id="ed-convert-btn" onclick="showConvertToTransferPicker()" style="color:var(--blue);border-color:var(--blue);">↪️ Ubah jadi Transfer</div>
+        <div id="ed-convert-panel" style="display:none;margin-top:10px;background:var(--sur);border-radius:12px;padding:12px;">
+          <div class="fg" style="margin-bottom:10px;"><label class="flbl">Transfer ke akun</label><select class="fi" id="ed-convert-acct"></select></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btng" style="flex:1;" type="button" onclick="document.getElementById('ed-convert-panel').style.display='none';">Batal</button>
+            <button class="btn" style="flex:1;background:var(--blue);color:white;" type="button" onclick="confirmConvertExpenseToTransfer()">Konfirmasi</button>
+          </div>
+        </div>
+      </div>
       <div class="factions">
         <button class="btn btng" onclick="cancelEdit()">Batal</button>
         <button class="btn btnp" onclick="saveEdit()">Simpan</button>
@@ -1393,10 +1403,14 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <div id="txnlist-tabs" style="padding:0 20px 10px;display:flex;gap:8px;">
       <div id="tlt-chart" onclick="setTxnListView('chart')" style="flex:1;padding:7px;text-align:center;font-size:12px;font-weight:700;border-radius:9px;cursor:pointer;background:var(--primary-light);border:1.5px solid var(--primary);color:var(--primary);font-family:'Manrope';">📊 Kategori</div>
       <div id="tlt-list" onclick="setTxnListView('list')" style="flex:1;padding:7px;text-align:center;font-size:12px;font-weight:700;border-radius:9px;cursor:pointer;background:var(--card2);border:1.5px solid var(--bdr);color:var(--txm);font-family:'Manrope';">📋 Transaksi</div>
+      <div id="tlt-payee" onclick="setTxnListView('payee')" style="flex:1;padding:7px;text-align:center;font-size:12px;font-weight:700;border-radius:9px;cursor:pointer;background:var(--card2);border:1.5px solid var(--bdr);color:var(--txm);font-family:'Manrope';">👤 Payee</div>
     </div>
     <div id="txnlist-chart-view" style="display:none;">
       <div style="position:relative;height:200px;margin:0 20px 10px;"><canvas id="txnlist-donut"></canvas></div>
       <div id="txnlist-cat-bars" style="max-height:35vh;overflow-y:auto;padding:0 20px 8px;"></div>
+    </div>
+    <div id="txnlist-payee-view" style="display:none;">
+      <div id="txnlist-payee-bars" style="max-height:55vh;overflow-y:auto;padding:0 20px 8px;"></div>
     </div>
     <div id="txnlist-list-view">
       <div class="sbar" style="margin:0 20px 8px;"><span class="ms" style="font-size:16px;color:var(--txm);">search</span><input type="text" id="txnlist-search" placeholder="Cari…" oninput="filterTxnList()" style="background:none;border:none;color:var(--tx);font-family:'Inter';font-size:14px;outline:none;flex:1;"/></div>
@@ -2114,14 +2128,53 @@ function renderCatPickerList(list){
   var el=document.getElementById('catpick-list');if(!el)return;
   var sel=document.getElementById(catPickTargetId);
   var currentVal=sel?sel.value:'';
-  el.innerHTML=list.map(function(o){
+  var html=list.map(function(o){
     var active=o.value===currentVal;
     var safeVal=String(o.value).replace(/"/g,'&quot;');
     return '<div class="catpick-item" data-val="'+safeVal+'" style="padding:13px 14px;border-radius:11px;cursor:pointer;font-family:Inter;font-size:14px;'+(active?'background:var(--primary-bg,var(--red-bg));color:var(--primary);font-weight:700;':'color:var(--tx);')+'">'+(o.text||'(Tanpa nama)')+'</div>';
-  }).join('')||'<div style="text-align:center;padding:28px 12px;color:var(--txm);font-size:13px;font-family:Inter;">Kategori tidak ditemukan</div>';
+  }).join('');
+  if(!html)html='<div style="text-align:center;padding:28px 12px;color:var(--txm);font-size:13px;font-family:Inter;">Kategori tidak ditemukan</div>';
+  // Offer "add new category" only where the picked value becomes a real
+  // transaction category (adding/editing a transaction) — not on report
+  // filter pickers (rm-cat/ry-cat), where creating a category out of thin
+  // air with nothing filed under it yet wouldn't do anything useful.
+  var allowNew=(catPickTargetId==='ed-cat'||catPickTargetId==='a-cat');
+  var q=((document.getElementById('catpick-search')||{}).value||'').trim();
+  if(allowNew&&q){
+    var exists=catPickOptions.some(function(o){return o.text.toLowerCase()===q.toLowerCase();});
+    if(!exists){
+      html+='<div class="catpick-item catpick-new" data-newval="'+q.replace(/"/g,'&quot;')+'" style="padding:13px 14px;border-radius:11px;cursor:pointer;font-family:Inter;font-size:14px;color:var(--primary);font-weight:700;display:flex;align-items:center;gap:8px;border:1.5px dashed var(--primary);margin-top:6px;"><span class="ms" style="font-size:16px;">add</span>Tambah kategori "'+q+'"</div>';
+    }
+  }
+  el.innerHTML=html;
   Array.prototype.forEach.call(el.querySelectorAll('.catpick-item'),function(item){
-    item.onclick=function(){selectCatPickerOption(item.getAttribute('data-val'));};
+    if(item.classList.contains('catpick-new')){
+      item.onclick=function(){addNewCategoryFromPicker(item.getAttribute('data-newval'));};
+    }else{
+      item.onclick=function(){selectCatPickerOption(item.getAttribute('data-val'));};
+    }
   });
+}
+// Adds a brand-new category as an <option> on the target <select> and
+// picks it immediately. It only needs to exist there for now — allCats
+// (used to populate every picker) is derived from allTxns and refreshes
+// itself via refreshCatYearLists() once the transaction being added/
+// edited is actually saved with this category, so no separate registry
+// needs to be kept in sync here.
+function addNewCategoryFromPicker(name){
+  name=(name||'').trim();
+  if(!name)return;
+  var sel=document.getElementById(catPickTargetId);
+  if(!sel)return;
+  var exists=Array.prototype.some.call(sel.options,function(o){return o.value===name;});
+  if(!exists){
+    var opt=document.createElement('option');
+    opt.value=name;opt.text=name;
+    sel.appendChild(opt);
+  }
+  sel.value=name;
+  syncCatBtn(catPickTargetId);
+  closeDrawer('catpick-dover');
 }
 function filterCatPicker(){
   var q=((document.getElementById('catpick-search')||{}).value||'').toLowerCase().trim();
@@ -2672,6 +2725,23 @@ function renderCatR(){
 // clickable "Lihat Detail →" row inside it — a native canvas tooltip can't
 // contain a real clickable element. Shared between the Bulanan and Tahunan
 // charts.
+// Shows the same clickable Pemasukan/Pengeluaran/Net popup used by the
+// monthly/yearly chart bars, but anchored to a tapped month/year summary
+// card instead of a canvas point — so cards get the identical "tap a row
+// to jump straight to that filtered list, or Lihat Detail for the full
+// category breakdown" behavior as the chart, rather than jumping
+// straight into the category breakdown with no in-between choice.
+function showPeriodCardDetail(ev,periodKey,incomeVal,expenseVal,isYear){
+  var type=(document.getElementById(isYear?'ry-type':'rm-type')||{}).value||'';
+  var rows=[];
+  if(type!=='expense')rows.push({label:'Pemasukan',color:'#4ade80',value:'+ Rp '+fn(incomeVal),onClick:function(){openTxnList('income',periodKey,null,'list');}});
+  if(type!=='income')rows.push({label:'Pengeluaran',color:'#f87171',value:'- Rp '+fn(expenseVal),onClick:function(){openTxnList('expense',periodKey,null,'list');}});
+  if(type==='')rows.push({label:'Net',color:'#60a5fa',value:((incomeVal-expenseVal)>=0?'+':'-')+' Rp '+fn(Math.abs(incomeVal-expenseVal))});
+  var title=isYear?periodKey:(function(){var p=periodKey.split('-');return MN[parseInt(p[1])-1]+' '+p[0];})();
+  var card=ev.currentTarget,rect=card.getBoundingClientRect();
+  var x=ev.clientX-rect.left,y=ev.clientY-rect.top;
+  showChartDetailTooltip(card,x,y,title,rows,function(){isYear?viewYearDetail(periodKey):viewMonthDetail(periodKey);});
+}
 function hideChartDetailTooltip(){
   var el=document.getElementById('ctt-tooltip');
   if(el){el.style.opacity=0;el.style.pointerEvents='none';}
@@ -2693,10 +2763,11 @@ function showChartDetailTooltip(canvas,x,y,title,rows,onDetail){
       }
     });
   }
-  var rowsHtml=rows.map(function(r){
-    return '<div style="display:flex;align-items:center;gap:7px;margin:4px 0;white-space:nowrap;">' +
+  var rowsHtml=rows.map(function(r,idx){
+    var clickable=typeof r.onClick==='function';
+    return '<div class="ctt-row" data-idx="'+idx+'" style="display:flex;align-items:center;gap:7px;margin:4px 0;white-space:nowrap;'+(clickable?'cursor:pointer;border-radius:6px;padding:2px 4px;margin-left:-4px;margin-right:-4px;':'')+'">' +
       '<span style="width:9px;height:9px;border-radius:2px;background:'+r.color+';display:inline-block;flex-shrink:0;"></span>' +
-      '<span style="flex:1;opacity:.85;">'+r.label+'</span>' +
+      '<span style="flex:1;opacity:.85;">'+r.label+(clickable?' ›':'')+'</span>' +
       '<span style="font-weight:700;">'+r.value+'</span>' +
     '</div>';
   }).join('');
@@ -2706,6 +2777,14 @@ function showChartDetailTooltip(canvas,x,y,title,rows,onDetail){
   if(btn)btn.onclick=function(ev){ev.stopPropagation();el.style.opacity=0;el.style.pointerEvents='none';onDetail();};
   var closeBtn=el.querySelector('.ctt-close-btn');
   if(closeBtn)closeBtn.onclick=function(ev){ev.stopPropagation();el.style.opacity=0;el.style.pointerEvents='none';};
+  // Wire up individual row clicks (e.g. tapping "Pengeluaran" jumps
+  // straight to that period's expense list, skipping the general detail
+  // button) for any row that was given its own onClick.
+  rows.forEach(function(r,idx){
+    if(typeof r.onClick!=='function')return;
+    var rowEl=el.querySelector('.ctt-row[data-idx="'+idx+'"]');
+    if(rowEl)rowEl.onclick=function(ev){ev.stopPropagation();el.style.opacity=0;el.style.pointerEvents='none';r.onClick();};
+  });
   var rect=canvas.getBoundingClientRect();
   el.style.opacity=1;el.style.pointerEvents='auto';
   var left=rect.left+window.scrollX+x;
@@ -2938,8 +3017,8 @@ function renderMonR(){
         if(!elements||!elements.length){hideChartDetailTooltip();return;}
         var m=months[elements[0].index];
         var rows=[];
-        if(type!=='expense')rows.push({label:'Pemasukan',color:'#4ade80',value:'+ Rp '+fn(bm[m].i)});
-        if(type!=='income')rows.push({label:'Pengeluaran',color:'#f87171',value:'- Rp '+fn(bm[m].e)});
+        if(type!=='expense')rows.push({label:'Pemasukan',color:'#4ade80',value:'+ Rp '+fn(bm[m].i),onClick:function(){openTxnList('income',m,null,'list');}});
+        if(type!=='income')rows.push({label:'Pengeluaran',color:'#f87171',value:'- Rp '+fn(bm[m].e),onClick:function(){openTxnList('expense',m,null,'list');}});
         if(type==='')rows.push({label:'Net',color:'#60a5fa',value:(bm[m].n>=0?'+':'-')+' Rp '+fn(Math.abs(bm[m].n))});
         showChartDetailTooltip(chart.canvas,evt.x,evt.y,lb[elements[0].index],rows,function(){viewMonthDetail(m);});
       },
@@ -2978,7 +3057,7 @@ function renderMonR(){
     var maxVal=Math.max(i,e)||1;
     var barI=Math.round(i/maxVal*100);
     var barE=Math.round(e/maxVal*100);
-    return '<div onclick="viewMonthDetail(\''+m+'\')" style="background:white;border-radius:16px;padding:16px;margin-top:10px;cursor:pointer;">' +
+    return '<div onclick="showPeriodCardDetail(event,\''+m+'\','+i+','+e+',false)" style="background:white;border-radius:16px;padding:16px;margin-top:10px;cursor:pointer;">' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;">' +
         '<div>' +
           '<div style="font-family:Manrope;font-size:16px;font-weight:800;">'+MN[parseInt(p[1])-1]+' '+p[0]+'</div>' +
@@ -3132,8 +3211,8 @@ function renderYrR(){
         if(!elements||!elements.length){hideChartDetailTooltip();return;}
         var y=years[elements[0].index];
         var rows=[];
-        if(type!=='expense')rows.push({label:'Pemasukan',color:'#4ade80',value:'+ Rp '+fn(by[y].i)});
-        if(type!=='income')rows.push({label:'Pengeluaran',color:'#f87171',value:'- Rp '+fn(by[y].e)});
+        if(type!=='expense')rows.push({label:'Pemasukan',color:'#4ade80',value:'+ Rp '+fn(by[y].i),onClick:function(){openTxnList('income',y,null,'list');}});
+        if(type!=='income')rows.push({label:'Pengeluaran',color:'#f87171',value:'- Rp '+fn(by[y].e),onClick:function(){openTxnList('expense',y,null,'list');}});
         if(type==='')rows.push({label:'Net',color:'#60a5fa',value:((by[y].i-by[y].e)>=0?'+':'-')+' Rp '+fn(Math.abs(by[y].i-by[y].e))});
         showChartDetailTooltip(chart.canvas,evt.x,evt.y,y,rows,function(){viewYearDetail(y);});
       },
@@ -3211,7 +3290,7 @@ function renderYrR(){
       var e=by[y].e,i=by[y].i,n=i-e;
       var sr=i>0?Math.round(n/i*100):0;
       var maxVal=Math.max(i,e)||1;
-      return '<div onclick="viewYearDetail(\''+y+'\')" style="background:white;border-radius:16px;padding:16px;margin-top:10px;cursor:pointer;">' +
+      return '<div onclick="showPeriodCardDetail(event,\''+y+'\','+i+','+e+',true)" style="background:white;border-radius:16px;padding:16px;margin-top:10px;cursor:pointer;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">' +
           '<div>' +
             '<div style="font-family:Manrope;font-size:24px;font-weight:800;">'+y+'</div>' +
@@ -3248,7 +3327,7 @@ function renderYrR(){
 
 // ── TXN LIST DRAWER ───────────────────────────────
 var txnListData=[],txnListView='chart',txnListDonutCI=null;
-function openTxnList(mode,mo,cat){
+function openTxnList(mode,mo,cat,view){
   var txns=mo?allTxns.filter(function(t){return t.date.indexOf(mo)===0;}):allTxns;
   if(selAcct)txns=txns.filter(function(t){return t.account===selAcct;});
   var title='',total=0;
@@ -3261,17 +3340,34 @@ function openTxnList(mode,mo,cat){
   document.getElementById('txnlist-total').textContent=(total>=0?'+':'')+fn(total);
   document.getElementById('txnlist-total').style.color=total>=0?'var(--green)':'var(--red)';
   document.getElementById('txnlist-search').value='';
-  setTxnListView('chart');
+  setTxnListView(view||'chart');
   openDrawer('txnlist-dover');
 }
 function setTxnListView(v){
   txnListView=v;
-  var isChart=v==='chart';
+  var isChart=v==='chart',isList=v==='list',isPayee=v==='payee';
   document.getElementById('txnlist-chart-view').style.display=isChart?'block':'none';
-  document.getElementById('txnlist-list-view').style.display=isChart?'none':'block';
+  document.getElementById('txnlist-list-view').style.display=isList?'block':'none';
+  document.getElementById('txnlist-payee-view').style.display=isPayee?'block':'none';
   document.getElementById('tlt-chart').style.background=isChart?'var(--primary-light)':'var(--card2)';document.getElementById('tlt-chart').style.borderColor=isChart?'var(--primary)':'var(--bdr)';document.getElementById('tlt-chart').style.color=isChart?'var(--primary)':'var(--txm)';
-  document.getElementById('tlt-list').style.background=!isChart?'var(--primary-light)':'var(--card2)';document.getElementById('tlt-list').style.borderColor=!isChart?'var(--primary)':'var(--bdr)';document.getElementById('tlt-list').style.color=!isChart?'var(--primary)':'var(--txm)';
-  if(isChart)renderTxnListChart();else filterTxnList();
+  document.getElementById('tlt-list').style.background=isList?'var(--primary-light)':'var(--card2)';document.getElementById('tlt-list').style.borderColor=isList?'var(--primary)':'var(--bdr)';document.getElementById('tlt-list').style.color=isList?'var(--primary)':'var(--txm)';
+  document.getElementById('tlt-payee').style.background=isPayee?'var(--primary-light)':'var(--card2)';document.getElementById('tlt-payee').style.borderColor=isPayee?'var(--primary)':'var(--bdr)';document.getElementById('tlt-payee').style.color=isPayee?'var(--primary)':'var(--txm)';
+  if(isChart)renderTxnListChart();else if(isPayee)renderTxnListPayee();else filterTxnList();
+}
+// "by Payee" view for the transaction-list drawer — groups the same
+// filtered set by payee across every category, mirroring
+// renderTxnListChart()'s by-category breakdown but without needing a
+// single category picked first (unlike openPayeeReport, which is always
+// scoped to one category drilled down from the Kategori tab).
+function renderTxnListPayee(){
+  var bp={};txnListData.filter(function(t){return!isTf(t.category);}).forEach(function(t){bp[t.payee]=(bp[t.payee]||0)+Math.abs(t.amount);});
+  var sorted=Object.entries(bp).sort(function(a,b){return b[1]-a[1];});var tot=sorted.reduce(function(s,e){return s+e[1];},0);
+  var bars=document.getElementById('txnlist-payee-bars');if(!bars)return;
+  bars.innerHTML=sorted.map(function(e,i){
+    var pct=tot>0?(e[1]/tot*100).toFixed(1):0;
+    var safePayee=e[0].replace(/'/g,"\\'");
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr2);cursor:pointer;" onclick="setTxnListView(\'list\');setTimeout(function(){document.getElementById(\'txnlist-search\').value=\''+safePayee+'\';filterTxnList();},50)"><div style="width:9px;height:9px;border-radius:50%;background:'+CC[i%CC.length]+';flex-shrink:0;"></div><div style="flex:1;min-width:0;"><div style="font-family:Manrope;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+e[0]+'</div><div style="margin-top:3px;height:3px;background:var(--bdr);border-radius:2px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+CC[i%CC.length]+';border-radius:2px;"></div></div></div><div style="text-align:right;flex-shrink:0;font-family:Manrope;"><div style="font-size:13px;font-weight:700;color:var(--red);">'+fn(e[1])+'</div><div style="font-size:11px;color:var(--txm);font-family:Inter;">'+pct+'%</div></div></div>';
+  }).join('')||'<div class="empty">Tidak ada data</div>';
 }
 function renderTxnListChart(){
   var bc={};txnListData.filter(function(t){return!isTf(t.category);}).forEach(function(t){bc[t.category]=(bc[t.category]||0)+Math.abs(t.amount);});
@@ -3987,6 +4083,55 @@ function openEditMode(){
 
   // Explicit expense/income toggle — no more inferring the sign
   setEditType(t.amount<0?'expense':'income');
+
+  // "Ubah jadi Transfer" only makes sense from an expense (money already
+  // going out) — converting an income to a transfer would need flipping
+  // its sign and picking which account it came FROM instead, a different
+  // enough flow that it's out of scope here.
+  var convertWrap=document.getElementById('ed-convert-wrap');
+  if(convertWrap)convertWrap.style.display=(t.amount<0)?'block':'none';
+  var convertPanel=document.getElementById('ed-convert-panel');
+  if(convertPanel)convertPanel.style.display='none';
+}
+// Reveals the "which account did this money go to" picker under the
+// "Ubah jadi Transfer" button, populated with every account except the
+// one this transaction already belongs to.
+function showConvertToTransferPicker(){
+  if(!txndCurrent)return;
+  var sel=document.getElementById('ed-convert-acct');
+  if(sel){
+    sel.innerHTML='';
+    allAccts.filter(function(a){return a!==txndCurrent.account;}).forEach(function(a){sel.add(new Option(al(a),a));});
+  }
+  var panel=document.getElementById('ed-convert-panel');
+  if(panel)panel.style.display='block';
+}
+// Converts the currently-edited expense into a transfer: this
+// transaction's category becomes the transfer category, and a matching
+// inward leg is created in the chosen destination account — the exact
+// mirror of convertTransferToExpense() below.
+function confirmConvertExpenseToTransfer(){
+  if(!txndCurrent||txndCurrent.amount>=0||isTf(txndCurrent.category))return;
+  var destAcct=(document.getElementById('ed-convert-acct')||{}).value;
+  if(!destAcct){showToast('Pilih akun tujuan dulu');return;}
+  var t=txndCurrent;
+  var tid=Date.now()+'_conv';
+  var srcLabel=al(t.account),destLabel=al(destAcct);
+  t.payee='Transfer ke '+destLabel;
+  t.category='Transfer (Keluar)';
+  t._userAdded=true;
+  t._tid=tid;
+  var pair={payee:'Transfer dari '+srcLabel,category:'Transfer (Masuk)',amount:Math.abs(t.amount),date:t.date,remarks:t.remarks||'',account:destAcct,_userAdded:true,_tid:tid};
+  allTxns.push(pair);
+  acctBals[destAcct]=(acctBals[destAcct]||0)+pair.amount;
+
+  allTxns.forEach(function(x,i){x._id=i;});
+  refreshCatYearLists();
+  saveData();
+  cancelEdit();
+  renderDash();if(curTab==='transactions')renderTxns();refreshAD();
+  showToast('✅ Diubah jadi transfer ke '+destLabel);
+  closeDrawer('txnd-dover');
 }
 function cancelEdit(){
   document.getElementById('txnd-detail').style.display='block';
