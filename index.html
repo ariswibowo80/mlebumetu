@@ -2252,6 +2252,7 @@ function switchTab(t,fromPop){
   document.querySelectorAll('.ntab').forEach(function(n){n.classList.remove('active');});
   if(t==='acct-detail'){
     document.getElementById('pg-acct-detail').classList.add('active');
+    curTab=t;
     if(!fromPop){
       // Cover "left Dashboard" too, in case acct-detail was opened
       // directly from Dashboard without visiting the Akun tab first —
@@ -2288,6 +2289,7 @@ function backToAccts(fromPop){
   document.getElementById('pg-accounts').classList.add('active');
   var nt=document.getElementById('nt-accounts');if(nt)nt.classList.add('active');
   curTab='accounts';
+  renderAccts();
   _mlbAway=true; // still away from Dashboard, just one level shallower than acct-detail
   if(!fromPop)mlbPopIfNeeded(); // consumes the entry pushed when acct-detail was opened
 }
