@@ -2378,7 +2378,7 @@ function renderDash(){
   var daccts=document.getElementById('daccts');
   if(daccts){
     var shownAccts=allAccts.slice(0,5);
-    var accountsHtml=shownAccts.map(function(a){var b=acctBals[a];return'<div class="apill" onclick="openAcctDrawer(\''+a+'\')"><div class="apname">'+al(a)+'</div><div class="apbal '+(b<0?'r':'g')+'">'+idr(b)+'</div></div>';}).join('');
+    var accountsHtml=shownAccts.map(function(a){var b=acctBals[a];return'<div class="apill" onclick="openAcctDrawer(\''+a+'\')"><div class="apname">'+al(a)+'</div><div class="apbal '+(b<0?'r':'g')+'">'+(showTotalBalance?idr(b):'••••••')+'</div></div>';}).join('');
     if(allAccts.length>5){
       accountsHtml+='<div class="apill" onclick="switchTab(\'accounts\')" style="display:flex;align-items:center;justify-content:center;background:var(--card2);"><div style="text-align:center;"><div style="font-family:Manrope;font-size:12px;font-weight:700;color:var(--primary);">+'+(allAccts.length-5)+' lainnya</div></div></div>';
     }
@@ -2851,17 +2851,19 @@ function viewMonthDetail(monthKey){
   var rmCat=(document.getElementById('rm-cat')||{}).value||'';
   var rmAc=(document.getElementById('rm-ac')||{}).value||'';
   var rmType=(document.getElementById('rm-type')||{}).value||'';
-  catMode=rmType==='income'?'income':'expense';
+  var rcType=rmType==='income'?'income':(rmType==='expense'?'expense':'all');
+  catMode=rcType==='income'?'income':'expense';
   if(rmCat){
     openCD(rmCat,monthKey,rmAc);
     return;
   }
   catCustomRange=null; // don't let a stale custom period override the month we just picked
   setRT('cat');
-  var rcYr=document.getElementById('rc-yr'),rcMo=document.getElementById('rc-mo'),rcAc=document.getElementById('rc-ac');
+  var rcYr=document.getElementById('rc-yr'),rcMo=document.getElementById('rc-mo'),rcAc=document.getElementById('rc-ac'),rcTypeSel=document.getElementById('rc-type');
   if(rcYr)rcYr.value=p[0];
   if(rcMo)rcMo.value=p[1];
   if(rcAc)rcAc.value=rmAc;
+  if(rcTypeSel)rcTypeSel.value=rcType;
   renderCatR();
 }
 // Same, scoped to a whole year (all months). If a specific category is
@@ -2871,17 +2873,19 @@ function viewYearDetail(year){
   var ryCat=(document.getElementById('ry-cat')||{}).value||'';
   var ryAc=(document.getElementById('ry-ac')||{}).value||'';
   var ryType=(document.getElementById('ry-type')||{}).value||'';
-  catMode=ryType==='income'?'income':'expense';
+  var rcType=ryType==='income'?'income':(ryType==='expense'?'expense':'all');
+  catMode=rcType==='income'?'income':'expense';
   if(ryCat){
     openCD(ryCat,year,ryAc); // 'year' as a bare 4-digit prefix matches the whole year
     return;
   }
   catCustomRange=null;
   setRT('cat');
-  var rcYr=document.getElementById('rc-yr'),rcMo=document.getElementById('rc-mo'),rcAc=document.getElementById('rc-ac');
+  var rcYr=document.getElementById('rc-yr'),rcMo=document.getElementById('rc-mo'),rcAc=document.getElementById('rc-ac'),rcTypeSel=document.getElementById('rc-type');
   if(rcYr)rcYr.value=year;
   if(rcMo)rcMo.value='';
   if(rcAc)rcAc.value=ryAc;
+  if(rcTypeSel)rcTypeSel.value=rcType;
   renderCatR();
 }
 
@@ -4314,8 +4318,8 @@ function refreshPayeeDatalist(){
   var pays=[...new Set(allTxns.map(function(t){return t.payee;}))].filter(Boolean).sort();
   dl.innerHTML=pays.map(function(p){return'<option value="'+p.replace(/"/g,'&quot;')+'">';}).join('');
 }
-function openAddDrawer(){refreshPayeeDatalist();setAddType('expense');document.getElementById('a-date').value=new Date().toISOString().slice(0,10);document.getElementById('a-amt').value='';document.getElementById('a-pay').value='';document.getElementById('a-rem').value='';updateAddAccDisplay();openDrawer('add-dover');}
-function openAddDrawerType(type){refreshPayeeDatalist();setAddType(type);document.getElementById('a-date').value=new Date().toISOString().slice(0,10);document.getElementById('a-amt').value='';document.getElementById('a-pay').value='';document.getElementById('a-rem').value='';updateAddAccDisplay();openDrawer('add-dover');}
+function openAddDrawer(){refreshPayeeDatalist();setAddType('expense');document.getElementById('a-date').value=new Date().toISOString().slice(0,10);document.getElementById('a-amt').value='';document.getElementById('a-pay').value='';document.getElementById('a-rem').value='';var aAcct=document.getElementById('a-acct');if(aAcct&&curTab==='acct-detail'&&adKey&&allAccts.indexOf(adKey)>-1)aAcct.value=adKey;updateAddAccDisplay();openDrawer('add-dover');}
+function openAddDrawerType(type){refreshPayeeDatalist();setAddType(type);document.getElementById('a-date').value=new Date().toISOString().slice(0,10);document.getElementById('a-amt').value='';document.getElementById('a-pay').value='';document.getElementById('a-rem').value='';var aAcct=document.getElementById('a-acct');if(aAcct&&curTab==='acct-detail'&&adKey&&allAccts.indexOf(adKey)>-1)aAcct.value=adKey;updateAddAccDisplay();openDrawer('add-dover');}
 function setAddType(type){
   addType=type;
   var colors={expense:'var(--primary)',income:'var(--green)'};
