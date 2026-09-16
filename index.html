@@ -805,6 +805,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <div class="phdr-t" id="ad-title"></div>
       <div style="display:flex;gap:7px;align-items:center;">
         <span class="sync-ind" title="Sync status" onclick="refreshSync()">☁</span>
+        <div class="ibtn" onclick="goToMonthlyReportFromAccount()" title="Laporan Bulanan akun ini"><span class="ms">bar_chart</span></div>
         <div class="ibtn" style="background:var(--primary-light);border-color:rgba(183,19,26,.2);color:var(--primary);" onclick="openAddDrawer()"><span class="ms">add</span></div>
         <div class="ibtn" onclick="openSideMenu()"><span class="ms">menu</span></div>
       </div>
@@ -2579,6 +2580,24 @@ function openAD(acct){
   var b=acctBals[acct],inc=adAll.filter(function(t){return t.amount>0&&!isTf(t.category);}).reduce(function(s,t){return s+t.amount;},0),exp=adAll.filter(function(t){return t.amount<0&&!isTf(t.category);}).reduce(function(s,t){return s+t.amount;},0);
   document.getElementById('ad-stats').innerHTML='<div class="spill"><div class="splbl">Saldo</div><div class="spval" style="color:'+(b<0?'var(--red)':'var(--green)')+';">'+idr(b)+'</div></div><div class="spill"><div class="splbl">Masuk</div><div class="spval" style="color:var(--green);">+'+fn(inc)+'</div></div><div class="spill"><div class="splbl">Keluar</div><div class="spval" style="color:var(--red);">-'+fn(Math.abs(exp))+'</div></div>';
   adFiltered=adAll;renderAD();switchTab('acct-detail');
+}
+// Jumps from an account's detail page straight to the Laporan → Bulanan
+// tab, carrying over this page's own active filters (account, year,
+// income/expense type) so the monthly chart opens already scoped to
+// whatever the person was just looking at here — category stays
+// unfiltered ('Semua Kategori') since Detail Akun has no category filter
+// of its own to carry over.
+function goToMonthlyReportFromAccount(){
+  if(!adKey)return;
+  var adType=(document.getElementById('ad-type')||{}).value||'';
+  var adYear=(document.getElementById('ad-year')||{}).value||'';
+  var rmAc=document.getElementById('rm-ac'),rmYr=document.getElementById('rm-yr'),rmType=document.getElementById('rm-type'),rmCat=document.getElementById('rm-cat');
+  if(rmAc)rmAc.value=adKey;
+  if(rmYr)rmYr.value=adYear;
+  if(rmType)rmType.value=adType;
+  if(rmCat){rmCat.value='';syncCatBtn('rm-cat');}
+  switchTab('reports');
+  setRT('monthly');
 }
 // Recomputes adFiltered from search/month/year and resets the page size —
 // call this on any filter change. "Muat lagi" itself should NOT call this
