@@ -851,7 +851,9 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         <select id="fc-acct" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Akun</option></select>
         <select id="fc-month" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Bulan</option></select>
         <select id="fc-year" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Tahun</option></select>
+        <select id="fc-cat" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Kategori</option></select>
         <button onclick="filterTxns()" style="flex-shrink:0;padding:6px 12px;background:var(--primary);color:white;border:none;border-radius:20px;font-family:'Manrope';font-size:11px;font-weight:700;cursor:pointer;">Filter</button>
+        <button onclick="exportFilteredTxns()" title="Export transaksi yang lagi ditampilkan (sesuai filter aktif) ke CSV" style="flex-shrink:0;display:flex;align-items:center;gap:4px;padding:6px 12px;background:var(--bg2,#f2f2f2);color:var(--tx);border:1px solid var(--bd,#e2e2e2);border-radius:20px;font-family:'Manrope';font-size:11px;font-weight:700;cursor:pointer;"><span class="ms" style="font-size:14px;">file_download</span>Export</button>
       </div>
       <!-- Timeline list -->
       <div id="tlist" style="padding:0 0 8px;"></div>
@@ -2199,7 +2201,7 @@ function initDropdowns(){
   if(dropInit)return;dropInit=true;
   var aA=document.getElementById('a-acct'),aC=document.getElementById('a-cat');
   var tfF=document.getElementById('tf-fr'),tfT=document.getElementById('tf-to');
-  var fcA=document.getElementById('fc-acct'),fcY=document.getElementById('fc-year'),fcM=document.getElementById('fc-month');
+  var fcA=document.getElementById('fc-acct'),fcY=document.getElementById('fc-year'),fcM=document.getElementById('fc-month'),fcC=document.getElementById('fc-cat');
   var rcA=document.getElementById('rc-ac'),rcY=document.getElementById('rc-yr');
   var rmY=document.getElementById('rm-yr'),rmA=document.getElementById('rm-ac');
   var ryA=document.getElementById('ry-ac');
@@ -2213,7 +2215,7 @@ function initDropdowns(){
   // wiped out by the innerHTML='' reset elsewhere.
   [fcA,rcA,rmA,ryA].forEach(function(s){ if(s&&s.options.length===0) s.add(new Option('Semua Akun','')); });
   [fcY,rcY,rmY].forEach(function(s){ if(s&&s.options.length===0) s.add(new Option('Semua Tahun','')); });
-  [rmC,ryC].forEach(function(s){ if(s&&s.options.length===0) s.add(new Option('Semua Kategori','')); });
+  [rmC,ryC,fcC].forEach(function(s){ if(s&&s.options.length===0) s.add(new Option('Semua Kategori','')); });
   if(fcM&&fcM.options.length===0) fcM.add(new Option('Semua Bulan',''));
   // fc-month filters the Transaksi list by calendar month (01-12),
   // independent of the year select — combine both to pin down a single
@@ -2238,6 +2240,12 @@ function initDropdowns(){
   // categories, so leave transfer categories out of these two pickers —
   // selecting one would otherwise always show "no data".
   allCats.filter(function(c){return !isTf(c);}).forEach(function(c){[rmC,ryC].forEach(function(s){if(s)s.add(new Option(c,c));});});
+  // fc-cat (Transaksi list filter) includes every category, Transfer ones
+  // too — unlike rm-cat/ry-cat above, this isn't feeding an expense/income
+  // chart, so there's no reason to hide categories someone might
+  // specifically want to filter or export (e.g. reviewing "Transfer
+  // (Keluar)" entries).
+  if(fcC)allCats.forEach(function(c){fcC.add(new Option(c,c));});
   allYears.forEach(function(y){[fcY,rcY,rmY].forEach(function(s){if(s)s.add(new Option(y,y));});});
   if(rmY&&rmY.options.length>1)rmY.value=allYears[0]||'';
   // Sync the searchable-picker buttons for a-cat/ed-cat/rm-cat/ry-cat to
@@ -4568,6 +4576,36 @@ function exportData(){
   showToast(txns.length===0?'⚠️ Tidak ada transaksi untuk diexport':'✅ Export berhasil ('+txns.length+' transaksi)');
 }
 
+// Exports exactly what the Transaksi list is currently showing — every
+// active filter there (tipe, akun, bulan, tahun, kategori, pencarian)
+// narrows tfiltd already, so this just writes that same array out rather
+// than re-deriving the filter. Same CSV shape as exportData() above (and
+// the CSV importer expects), plus a trailing ACCOUNT column since, unlike
+// exportData(), this can span every account at once with no way to tell
+// rows apart otherwise — the importer only reads the six columns it
+// knows, so the extra column is harmless if this file is ever re-imported.
+function exportFilteredTxns(){
+  if(!tfiltd.length){showToast('⚠️ Tidak ada transaksi untuk diexport');return;}
+  var rows=['PAYEE_ITEM_DESC;CATEGORY;AMOUNT;STATUS;TRAN_DATE;REMARKS;ACCOUNT'];
+  tfiltd.forEach(function(t){rows.push('"'+t.payee+'";"'+(t.category||'')+'";"'+t.amount+'";"U";"'+t.date+'";"'+(t.remarks||'')+'";"'+al(t.account)+'"');});
+  var blob=new Blob([rows.join('\n')],{type:'text/csv'});
+  var a=document.createElement('a');
+  var ac=(document.getElementById('fc-acct')||{}).value||'';
+  var yr=(document.getElementById('fc-year')||{}).value||'';
+  var mo=(document.getElementById('fc-month')||{}).value||'';
+  var cat=(document.getElementById('fc-cat')||{}).value||'';
+  var nameParts=['mlebumetu_export'];
+  if(ac)nameParts.push(ac.replace(/[^a-z0-9]+/gi,'_'));
+  if(yr)nameParts.push(yr);
+  if(mo)nameParts.push(mo);
+  if(cat)nameParts.push(cat.replace(/[^a-z0-9]+/gi,'_'));
+  nameParts.push(new Date().toISOString().slice(0,10));
+  a.href=URL.createObjectURL(blob);
+  a.download=nameParts.join('_')+'.csv';
+  a.click();
+  showToast('✅ Export berhasil ('+tfiltd.length+' transaksi)');
+}
+
 // ── FULL BACKUP & RESTORE ──────────────────────────
 // Unlike Export CSV (transactions only, one account or all), this saves
 // EVERYTHING needed to fully reconstruct the app's state in one file:
@@ -6128,6 +6166,7 @@ filterTxns = function() {
   var ac   = (document.getElementById('fc-acct')  || {}).value || '';
   var yr   = (document.getElementById('fc-year')  || {}).value || '';
   var mo   = (document.getElementById('fc-month') || {}).value || '';
+  var cat  = (document.getElementById('fc-cat')   || {}).value || '';
   var type = (document.getElementById('fc-type')  || {}).value || 'all';
   tfMode = type;
   q = q.toLowerCase();
@@ -6136,6 +6175,7 @@ filterTxns = function() {
     if (ac && t.account !== ac) return false;
     if (yr && t.date.indexOf(yr) !== 0) return false;
     if (mo && t.date.slice(5,7) !== mo) return false;
+    if (cat && t.category !== cat) return false;
     if (q && t.payee.toLowerCase().indexOf(q) === -1 &&
         (t.remarks||'').toLowerCase().indexOf(q) === -1 &&
         t.category.toLowerCase().indexOf(q) === -1) return false;
