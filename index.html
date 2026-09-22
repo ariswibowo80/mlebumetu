@@ -1200,6 +1200,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       </div>
       <div style="padding:0 20px 8px;display:flex;gap:10px;">
         <button class="btn btng" style="flex:1;" onclick="closeDrawer('txnd-dover')">Tutup</button>
+        <button class="btn" style="flex:1;background:var(--card2);color:var(--tx);border:1px solid var(--bdr);" onclick="duplicateTxn()">📋 Duplikat</button>
         <button class="btn" style="flex:1;background:var(--red-bg);color:var(--red);border:1px solid rgba(183,19,26,.2);" onclick="deleteTxn()">🗑️ Hapus</button>
       </div>
     </div>
@@ -4322,6 +4323,31 @@ function refreshPayeeDatalist(){
   if(!dl)return;
   var pays=[...new Set(allTxns.map(function(t){return t.payee;}))].filter(Boolean).sort();
   dl.innerHTML=pays.map(function(p){return'<option value="'+p.replace(/"/g,'&quot;')+'">';}).join('');
+}
+// Prefills the Add Transaction form from an existing transaction
+// (everything but the date, which defaults to today since a duplicate
+// is usually "this again, today") and opens it for editing before save —
+// this never touches txndCurrent's own record, it only seeds a new one.
+// Transfers are excluded: duplicating a single leg would create a
+// one-sided, unpaired transfer, so those should go through the Transfer
+// form instead.
+function duplicateTxn(){
+  if(!txndCurrent)return;
+  var t=txndCurrent;
+  if(isTf(t.category)){showToast('Transaksi transfer tidak bisa diduplikat — pakai tombol Transfer.');return;}
+  closeDrawer('txnd-dover');
+  setTimeout(function(){
+    refreshPayeeDatalist();
+    setAddType(t.amount<0?'expense':'income');
+    document.getElementById('a-date').value=new Date().toISOString().slice(0,10);
+    document.getElementById('a-amt').value=Math.abs(t.amount);
+    document.getElementById('a-pay').value=t.payee;
+    document.getElementById('a-rem').value=t.remarks||'';
+    var aAcct=document.getElementById('a-acct');if(aAcct)aAcct.value=t.account;
+    var aCat=document.getElementById('a-cat');if(aCat){aCat.value=t.category;syncCatBtn('a-cat');}
+    updateAddAccDisplay();
+    openDrawer('add-dover');
+  },320);
 }
 function openAddDrawer(){refreshPayeeDatalist();setAddType('expense');document.getElementById('a-date').value=new Date().toISOString().slice(0,10);document.getElementById('a-amt').value='';document.getElementById('a-pay').value='';document.getElementById('a-rem').value='';var aAcct=document.getElementById('a-acct');if(aAcct&&curTab==='acct-detail'&&adKey&&allAccts.indexOf(adKey)>-1)aAcct.value=adKey;updateAddAccDisplay();openDrawer('add-dover');}
 function openAddDrawerType(type){refreshPayeeDatalist();setAddType(type);document.getElementById('a-date').value=new Date().toISOString().slice(0,10);document.getElementById('a-amt').value='';document.getElementById('a-pay').value='';document.getElementById('a-rem').value='';var aAcct=document.getElementById('a-acct');if(aAcct&&curTab==='acct-detail'&&adKey&&allAccts.indexOf(adKey)>-1)aAcct.value=adKey;updateAddAccDisplay();openDrawer('add-dover');}
