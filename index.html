@@ -4368,7 +4368,7 @@ function submitAdd(){
   if(!RAW_DATA[ac])RAW_DATA[ac]=[];RAW_DATA[ac].push({payee:py,category:cat,amount:finalAmt,date:dt,remarks:rm});
   acctBals[ac]=(acctBals[ac]||0)+finalAmt;
   refreshCatYearLists();
-  saveData();closeDrawer('add-dover');showToast('✅ Transaksi ditambahkan!');renderDash();if(curTab==='accounts')renderAccts();refreshAD();
+  saveData();closeDrawer('add-dover');showToast('✅ Transaksi ditambahkan!');renderDash();if(curTab==='transactions')filterTxns();if(curTab==='accounts')renderAccts();refreshAD();
 }
 
 // ── TRANSFER ──────────────────────────────────────
@@ -4383,7 +4383,7 @@ function submitTf(){
   if(!RAW_DATA[fr])RAW_DATA[fr]=[];if(!RAW_DATA[to])RAW_DATA[to]=[];
   RAW_DATA[fr].push(Object.assign({},outT));RAW_DATA[to].push(Object.assign({},inT));
   acctBals[fr]-=am;acctBals[to]+=am;
-  saveData();closeDrawer('tf-dover');showToast('✅ Transfer Rp '+ff(am));renderDash();if(curTab==='accounts')renderAccts();refreshAD();
+  saveData();closeDrawer('tf-dover');showToast('✅ Transfer Rp '+ff(am));renderDash();if(curTab==='transactions')filterTxns();if(curTab==='accounts')renderAccts();refreshAD();
 }
 
 // ── FAB ───────────────────────────────────────────
