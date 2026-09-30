@@ -906,11 +906,12 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         <!-- Filters -->
         <div style="display:flex;gap:8px;padding:12px 16px 0;">
           <select id="rm-yr" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"></select>
+          <select id="rm-mo" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"><option value="">Semua Bulan</option></select>
           <select id="rm-ac" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"><option value="">Semua Akun</option></select>
         </div>
         <div style="display:flex;gap:8px;padding:8px 16px 0;">
           <select id="rm-cat" onchange="renderMonR()" class="fi" style="display:none;"><option value="">Semua Kategori</option></select><div class="fi cat-picker-btn" id="rm-cat-btn" onclick="openCatPicker('rm-cat')" style="flex:1;display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:9px 12px;font-size:13px;"><span id="rm-cat-btn-txt" style="color:var(--txm);">Semua Kategori</span><span class="ms" style="font-size:16px;color:var(--txm);">expand_more</span></div>
-          <select id="rm-type" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"><option value="">Semua Tipe</option><option value="income">Pemasukan Saja</option><option value="expense">Pengeluaran Saja</option></select>
+          <select id="rm-type" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"><option value="">Semua Tipe</option><option value="income">Pemasukan Saja</option><option value="expense">Pengeluaran Saja</option><option value="transfer">Transfer Saja</option></select>
         </div>
         <!-- Only shown when one account is selected: lets transfer in/out of
              that account count toward its Masuk/Keluar/Net, so the chart
@@ -2200,7 +2201,7 @@ function initDropdowns(){
   var tfF=document.getElementById('tf-fr'),tfT=document.getElementById('tf-to');
   var fcA=document.getElementById('fc-acct'),fcY=document.getElementById('fc-year'),fcM=document.getElementById('fc-month'),fcC=document.getElementById('fc-cat');
   var rcA=document.getElementById('rc-ac'),rcY=document.getElementById('rc-yr');
-  var rmY=document.getElementById('rm-yr'),rmA=document.getElementById('rm-ac');
+  var rmY=document.getElementById('rm-yr'),rmM=document.getElementById('rm-mo'),rmA=document.getElementById('rm-ac');
   var ryA=document.getElementById('ry-ac');
   var rmC=document.getElementById('rm-cat'),ryC=document.getElementById('ry-cat');
   var edA=document.getElementById('ed-acct'),edC=document.getElementById('ed-cat');
@@ -2223,6 +2224,13 @@ function initDropdowns(){
   // entirely.
   if(fcM&&fcM.options.length<2){
     MN.forEach(function(name,i){var mm=String(i+1).padStart(2,'0');fcM.add(new Option(name,mm));});
+  }
+  // rm-mo: month filter for Laporan Bulanan, same "Semua Bulan" + 12-month
+  // pattern as fc-month above — narrows the chart to a single calendar
+  // month (e.g. every March, across whichever years rm-yr allows).
+  if(rmM&&rmM.options.length===0) rmM.add(new Option('Semua Bulan',''));
+  if(rmM&&rmM.options.length<2){
+    MN.forEach(function(name,i){var mm=String(i+1).padStart(2,'0');rmM.add(new Option(name,mm));});
   }
 
   allAccts.forEach(function(a){
@@ -2919,6 +2927,7 @@ function viewYearDetail(year){
 function renderMonR(){
   hideChartDetailTooltip();
   var yr=(document.getElementById('rm-yr')||{}).value||'';
+  var mo=(document.getElementById('rm-mo')||{}).value||'';
   var ac=(document.getElementById('rm-ac')||{}).value||'';
   var cat=(document.getElementById('rm-cat')||{}).value||'';
   var type=(document.getElementById('rm-type')||{}).value||'';
@@ -2926,19 +2935,30 @@ function renderMonR(){
   // at ONE specific account — that's the one place a transfer really is a
   // saldo movement (money leaving/entering that account), rather than a
   // wash between two of the user's own accounts. So the checkbox only
-  // shows, and only takes effect, when an account is selected.
+  // shows, and only takes effect, when an account is selected — and it's
+  // redundant (and hidden) once "Transfer Saja" is already isolating
+  // transfers on its own.
   var tfToggle=document.getElementById('rm-tf-toggle');
-  if(tfToggle)tfToggle.style.display=ac?'block':'none';
+  if(tfToggle)tfToggle.style.display=(ac&&type!=='transfer')?'block':'none';
   var incTf=!!(ac&&document.getElementById('rm-inc-tf')&&document.getElementById('rm-inc-tf').checked);
   var txns=ac?allTxns.filter(function(t){return t.account===ac;}):allTxns;
   if(yr)txns=txns.filter(function(t){return t.date.indexOf(yr)===0;});
+  // rm-mo filters by calendar month (01-12) independent of the year select —
+  // combine both to pin a single month+year, or use month alone to compare
+  // e.g. every March across years.
+  if(mo)txns=txns.filter(function(t){return t.date.slice(5,7)===mo;});
   if(cat)txns=txns.filter(function(t){return t.category===cat;});
   if(type==='expense')txns=txns.filter(function(t){return t.amount<0;});
   else if(type==='income')txns=txns.filter(function(t){return t.amount>0;});
+  else if(type==='transfer')txns=txns.filter(function(t){return isTf(t.category);});
 
   var bm={};
   txns.forEach(function(t){
-    if(!incTf&&isTf(t.category))return;
+    // When "Transfer Saja" is active, txns is already narrowed to transfer
+    // legs only, so this exclusion should not apply — it exists to keep
+    // transfers OUT of the normal (non-transfer) income/expense view unless
+    // the per-account "Sertakan transfer" checkbox says otherwise.
+    if(type!=='transfer'&&!incTf&&isTf(t.category))return;
     var m=t.date.slice(0,7);
     if(!bm[m])bm[m]={e:0,i:0,n:0};
     if(t.amount<0)bm[m].e+=Math.abs(t.amount);
@@ -2958,11 +2978,12 @@ function renderMonR(){
 
   // Update legend to match the active type filter
   var legendEl=document.getElementById('rm-legend');
+  var lblIn=type==='transfer'?'Transfer Masuk':'Masuk', lblOut=type==='transfer'?'Transfer Keluar':'Keluar';
   if(legendEl){
     var showI=type!=='expense', showE=type!=='income';
     legendEl.innerHTML=
-      (showI?'<div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:3px;background:var(--green);"></div><span style="font-size:11px;color:var(--txm);font-family:\'Inter\';">Masuk</span></div>':'') +
-      (showE?'<div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:3px;background:var(--red);"></div><span style="font-size:11px;color:var(--txm);font-family:\'Inter\';">Keluar</span></div>':'');
+      (showI?'<div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:3px;background:var(--green);"></div><span style="font-size:11px;color:var(--txm);font-family:\'Inter\';">'+lblIn+'</span></div>':'') +
+      (showE?'<div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:3px;background:var(--red);"></div><span style="font-size:11px;color:var(--txm);font-family:\'Inter\';">'+lblOut+'</span></div>':'');
   }
 
   // Summary pills — adapt to the active type filter so we don't show
@@ -2976,13 +2997,13 @@ function renderMonR(){
     var pillsHtml='';
     if(type!=='expense'){
       pillsHtml+='<div style="flex-shrink:0;background:var(--green-bg);border-radius:12px;padding:10px 14px;min-width:120px;">' +
-        '<div style="font-size:10px;color:var(--green);font-weight:700;font-family:Inter;text-transform:uppercase;">Total Masuk</div>' +
+        '<div style="font-size:10px;color:var(--green);font-weight:700;font-family:Inter;text-transform:uppercase;">Total '+lblIn+'</div>' +
         '<div style="font-family:Manrope;font-size:14px;font-weight:800;color:var(--green);margin-top:3px;">+Rp '+fn(totI)+'</div>' +
       '</div>';
     }
     if(type!=='income'){
       pillsHtml+='<div style="flex-shrink:0;background:var(--red-bg);border-radius:12px;padding:10px 14px;min-width:120px;">' +
-        '<div style="font-size:10px;color:var(--red);font-weight:700;font-family:Inter;text-transform:uppercase;">Total Keluar</div>' +
+        '<div style="font-size:10px;color:var(--red);font-weight:700;font-family:Inter;text-transform:uppercase;">Total '+lblOut+'</div>' +
         '<div style="font-family:Manrope;font-size:14px;font-weight:800;color:var(--red);margin-top:3px;">-Rp '+fn(totE)+'</div>' +
       '</div>';
     }
@@ -3024,7 +3045,7 @@ function renderMonR(){
   // Beautiful line+bar combo chart
   var monDatasets=[];
   if(type!=='expense')monDatasets.push({
-    label:'Pemasukan',
+    label:lblIn,
     data:months.map(function(m){return bm[m].i;}),
     backgroundColor:'rgba(0,110,28,.15)',
     borderColor:'rgba(0,110,28,.8)',
@@ -3034,7 +3055,7 @@ function renderMonR(){
     order:2
   });
   if(type!=='income')monDatasets.push({
-    label:'Pengeluaran',
+    label:lblOut,
     data:months.map(function(m){return bm[m].e;}),
     backgroundColor:'rgba(183,19,26,.8)',
     borderColor:'rgba(183,19,26,1)',
@@ -3081,7 +3102,7 @@ function renderMonR(){
   });
   var avgLblEl=document.getElementById('rm-avg-lbl');
   if(avgLblEl){
-    var avgTypeLbl=type==='income'?'Pemasukan':type==='expense'?'Pengeluaran':'Net';
+    var avgTypeLbl=type==='income'?'Pemasukan':type==='expense'?'Pengeluaran':type==='transfer'?'Net Transfer':'Net';
     avgLblEl.innerHTML='<div style="width:14px;height:0;border-top:2px dashed '+avgColor+';flex-shrink:0;"></div>' +
       '<span>Rata-rata '+avgTypeLbl+' per bulan: <b style="color:'+avgColor+';font-family:Manrope;">'+(avgVal>=0?'+':'-')+'Rp '+fn(Math.abs(avgVal))+'</b></span>';
   }
@@ -3102,8 +3123,8 @@ function renderMonR(){
         if(!elements||!elements.length){hideChartDetailTooltip();return;}
         var m=months[elements[0].index];
         var rows=[];
-        if(type!=='expense')rows.push({label:'Pemasukan',color:'#4ade80',value:'+ Rp '+fn(bm[m].i),onClick:function(){openTxnList('income',m,null,'list');}});
-        if(type!=='income')rows.push({label:'Pengeluaran',color:'#f87171',value:'- Rp '+fn(bm[m].e),onClick:function(){openTxnList('expense',m,null,'list');}});
+        if(type!=='expense')rows.push({label:lblIn,color:'#4ade80',value:'+ Rp '+fn(bm[m].i),onClick:function(){openTxnList(type==='transfer'?'transfer':'income',m,null,'list');}});
+        if(type!=='income')rows.push({label:lblOut,color:'#f87171',value:'- Rp '+fn(bm[m].e),onClick:function(){openTxnList(type==='transfer'?'transfer':'expense',m,null,'list');}});
         if(type==='')rows.push({label:'Net',color:'#60a5fa',value:(bm[m].n>=0?'+':'-')+' Rp '+fn(Math.abs(bm[m].n))});
         showChartDetailTooltip(chart.canvas,evt.x,evt.y,lb[elements[0].index],rows,function(){viewMonthDetail(m);});
       },
@@ -3152,7 +3173,7 @@ function renderMonR(){
         '</div>' +
         '<div style="text-align:right;">' +
           '<div style="font-family:Manrope;font-size:15px;font-weight:800;color:'+(n>=0?'var(--green)':'var(--red)')+'">'+(n>=0?'+':'')+' Rp '+fn(Math.abs(n))+'</div>' +
-          '<div style="font-size:10px;color:var(--txm);font-family:Inter;">Net bulan ini</div>' +
+          '<div style="font-size:10px;color:var(--txm);font-family:Inter;">'+(type==='transfer'?'Net Transfer bulan ini':'Net bulan ini')+'</div>' +
         '</div>' +
       '</div>' +
       // Stacked visual bar
@@ -3162,11 +3183,11 @@ function renderMonR(){
       '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
         '<div style="background:var(--green-bg);border-radius:10px;padding:10px 12px;">' +
-          '<div style="font-size:10px;color:var(--green);font-weight:700;font-family:Inter;">↑ Pemasukan</div>' +
+          '<div style="font-size:10px;color:var(--green);font-weight:700;font-family:Inter;">↑ '+lblIn+'</div>' +
           '<div style="font-family:Manrope;font-size:13px;font-weight:800;color:var(--green);margin-top:3px;">Rp '+fn(i)+'</div>' +
         '</div>' +
         '<div style="background:var(--red-bg);border-radius:10px;padding:10px 12px;">' +
-          '<div style="font-size:10px;color:var(--red);font-weight:700;font-family:Inter;">↓ Pengeluaran</div>' +
+          '<div style="font-size:10px;color:var(--red);font-weight:700;font-family:Inter;">↓ '+lblOut+'</div>' +
           '<div style="font-family:Manrope;font-size:13px;font-weight:800;color:var(--red);margin-top:3px;">Rp '+fn(e)+'</div>' +
         '</div>' +
       '</div>' +
@@ -3418,6 +3439,7 @@ function openTxnList(mode,mo,cat,view){
   var title='',total=0;
   if(mode==='income'){txns=txns.filter(function(t){return t.amount>0&&!isTf(t.category);});title='Pemasukan';total=txns.reduce(function(s,t){return s+t.amount;},0);}
   else if(mode==='expense'){txns=txns.filter(function(t){return t.amount<0&&!isTf(t.category);});title='Pengeluaran';total=txns.reduce(function(s,t){return s+t.amount;},0);}
+  else if(mode==='transfer'){txns=txns.filter(function(t){return isTf(t.category);});title='Transfer';total=txns.reduce(function(s,t){return s+t.amount;},0);}
   else if(mode==='topcategory'&&cat){txns=txns.filter(function(t){return t.category===cat;});title=cat;total=txns.reduce(function(s,t){return s+t.amount;},0);}
   else{title='Semua Transaksi';total=txns.filter(function(t){return!isTf(t.category);}).reduce(function(s,t){return s+t.amount;},0);}
   txnListData=txns;
@@ -4755,7 +4777,7 @@ function confirmRestore(){
   saveData();
 
   dropInit=false;
-  ['a-acct','tf-fr','tf-to','fc-acct','rc-ac','rm-ac','ry-ac','ed-acct','a-cat','ed-cat','fc-year','fc-month','rc-yr','rm-yr','rm-cat','ry-cat'].forEach(function(id){
+  ['a-acct','tf-fr','tf-to','fc-acct','rc-ac','rm-ac','ry-ac','ed-acct','a-cat','ed-cat','fc-year','fc-month','rc-yr','rm-yr','rm-mo','rm-cat','ry-cat'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.innerHTML='';
   });
   initDropdowns();
@@ -5063,7 +5085,7 @@ function applyLoaded(saved) {
       // Reset selects (include a-cat/ed-cat/year selects so they get
       // repopulated from the fresh allCats/allYears above, not appended
       // on top of stale/duplicate options)
-      ['a-acct','tf-fr','tf-to','fc-acct','rc-ac','rm-ac','ry-ac','ed-acct','a-cat','ed-cat','fc-year','fc-month','rc-yr','rm-yr','rm-cat','ry-cat'].forEach(function(id){
+      ['a-acct','tf-fr','tf-to','fc-acct','rc-ac','rm-ac','ry-ac','ed-acct','a-cat','ed-cat','fc-year','fc-month','rc-yr','rm-yr','rm-mo','rm-cat','ry-cat'].forEach(function(id){
         var el = document.getElementById(id); if(el) el.innerHTML = '';
       });
       initDropdowns();
