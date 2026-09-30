@@ -2717,6 +2717,19 @@ function clearCatPeriod(){
   renderCatR();
 }
 
+// Re-renders whichever Laporan sub-tab (Kategori/Bulanan/Tahunan) is
+// currently active. Needed because saveEdit()/deleteTxn() previously only
+// refreshed the dashboard/transactions/accounts views — editing or
+// deleting a transaction from the "Lihat Detail" drawer opened off the
+// Laporan by Kategori page left that page's totals stale until the tab
+// was manually reopened.
+function refreshActiveReport(){
+  if(curTab!=='reports')return;
+  var rtCat=document.getElementById('rt-cat'),rtMon=document.getElementById('rt-monthly'),rtYr=document.getElementById('rt-yearly');
+  if(rtMon&&rtMon.classList.contains('active'))renderMonR();
+  else if(rtYr&&rtYr.classList.contains('active'))renderYrR();
+  else renderCatR();
+}
 function renderCatR(){
   var yr=(document.getElementById('rc-yr')||{}).value||'';var mo=(document.getElementById('rc-mo')||{}).value||'';var ac=(document.getElementById('rc-ac')||{}).value||'';
   var typeVal=(document.getElementById('rc-type')||{}).value||'expense';
@@ -4149,7 +4162,7 @@ function convertTransferToExpense(){
   allTxns.forEach(function(x,i){x._id=i;});
   refreshCatYearLists();
   saveData();
-  renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();refreshAD();
+  renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();refreshAD();refreshActiveReport();
   showToast('✅ Diubah jadi pengeluaran — pilih kategori yang sesuai');
   openEditMode(); // t.category is no longer a transfer category, so this now opens the normal edit form
 }
@@ -4237,7 +4250,7 @@ function confirmConvertExpenseToTransfer(){
   refreshCatYearLists();
   saveData();
   cancelEdit();
-  renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();refreshAD();
+  renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();refreshAD();refreshActiveReport();
   showToast('✅ Diubah jadi transfer ke '+destLabel);
   closeDrawer('txnd-dover');
 }
@@ -4327,6 +4340,7 @@ function saveEditTransfer(){
   if(curTab==='transactions')renderTxns();
   if(curTab==='accounts')renderAccts();
   refreshAD();
+  refreshActiveReport();
 }
 function saveEdit(){
   if(!txndCurrent)return;
@@ -4348,7 +4362,7 @@ function saveEdit(){
   acctBals[newAcct]=(acctBals[newAcct]||0)+newAmt;
   allTxns.sort(function(a,b){return b.date>a.date?1:-1;});allTxns.forEach(function(t,i){t._id=i;});
   refreshCatYearLists();
-  saveData();closeDrawer('txnd-dover');showToast('✅ Transaksi diperbarui');renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();refreshAD();
+  saveData();closeDrawer('txnd-dover');showToast('✅ Transaksi diperbarui');renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();refreshAD();refreshActiveReport();
 }
 function deleteTxn(){
   if(!txndCurrent)return;
@@ -4364,7 +4378,7 @@ function deleteTxn(){
   });
   allTxns.forEach(function(t,i){t._id=i;});
   refreshCatYearLists();
-  saveData();closeDrawer('txnd-dover');showToast(pair?'🗑️ Transfer dihapus':'🗑️ Transaksi dihapus');renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();refreshAD();
+  saveData();closeDrawer('txnd-dover');showToast(pair?'🗑️ Transfer dihapus':'🗑️ Transaksi dihapus');renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();refreshAD();refreshActiveReport();
 }
 
 // ── ADD TRANSACTION ───────────────────────────────
@@ -4419,7 +4433,7 @@ function submitAdd(){
   if(!RAW_DATA[ac])RAW_DATA[ac]=[];RAW_DATA[ac].push({payee:py,category:cat,amount:finalAmt,date:dt,remarks:rm});
   acctBals[ac]=(acctBals[ac]||0)+finalAmt;
   refreshCatYearLists();
-  saveData();closeDrawer('add-dover');showToast('✅ Transaksi ditambahkan!');renderDash();if(curTab==='transactions')filterTxns();if(curTab==='accounts')renderAccts();refreshAD();
+  saveData();closeDrawer('add-dover');showToast('✅ Transaksi ditambahkan!');renderDash();if(curTab==='transactions')filterTxns();if(curTab==='accounts')renderAccts();refreshAD();refreshActiveReport();
 }
 
 // ── TRANSFER ──────────────────────────────────────
@@ -4434,7 +4448,7 @@ function submitTf(){
   if(!RAW_DATA[fr])RAW_DATA[fr]=[];if(!RAW_DATA[to])RAW_DATA[to]=[];
   RAW_DATA[fr].push(Object.assign({},outT));RAW_DATA[to].push(Object.assign({},inT));
   acctBals[fr]-=am;acctBals[to]+=am;
-  saveData();closeDrawer('tf-dover');showToast('✅ Transfer Rp '+ff(am));renderDash();if(curTab==='transactions')filterTxns();if(curTab==='accounts')renderAccts();refreshAD();
+  saveData();closeDrawer('tf-dover');showToast('✅ Transfer Rp '+ff(am));renderDash();if(curTab==='transactions')filterTxns();if(curTab==='accounts')renderAccts();refreshAD();refreshActiveReport();
 }
 
 // ── FAB ───────────────────────────────────────────
