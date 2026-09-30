@@ -809,7 +809,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <div class="spills" id="ad-stats"></div>
       <div class="sbar"><span class="ms" style="font-size:16px;color:var(--txm);">search</span><input type="text" id="ad-search" placeholder="Cari…" oninput="filterAD()"/></div>
       <div style="display:flex;gap:7px;padding:8px 16px;overflow-x:auto;">
-        <select id="ad-type" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Tipe</option><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option></select>
+        <select id="ad-type" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Tipe</option><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option><option value="transfer">Transfer</option></select>
         <select id="ad-month" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Bulan</option></select>
         <select id="ad-year" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Tahun</option></select>
       </div>
@@ -2610,6 +2610,7 @@ function filterAD(){
     if(yr&&t.date.indexOf(yr)!==0)return false;
     if(ty==='expense'&&!(t.amount<0&&!isTf(t.category)))return false;
     if(ty==='income'&&!(t.amount>0&&!isTf(t.category)))return false;
+    if(ty==='transfer'&&!isTf(t.category))return false;
     return t.payee.toLowerCase().indexOf(q)>-1||(t.remarks||'').toLowerCase().indexOf(q)>-1||t.category.toLowerCase().indexOf(q)>-1;
   });
   adShown=50;renderAD();
