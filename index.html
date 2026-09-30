@@ -912,6 +912,16 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
           <select id="rm-cat" onchange="renderMonR()" class="fi" style="display:none;"><option value="">Semua Kategori</option></select><div class="fi cat-picker-btn" id="rm-cat-btn" onclick="openCatPicker('rm-cat')" style="flex:1;display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:9px 12px;font-size:13px;"><span id="rm-cat-btn-txt" style="color:var(--txm);">Semua Kategori</span><span class="ms" style="font-size:16px;color:var(--txm);">expand_more</span></div>
           <select id="rm-type" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"><option value="">Semua Tipe</option><option value="income">Pemasukan Saja</option><option value="expense">Pengeluaran Saja</option></select>
         </div>
+        <!-- Only shown when one account is selected: lets transfer in/out of
+             that account count toward its Masuk/Keluar/Net, so the chart
+             reflects the account's actual saldo movement instead of just
+             non-transfer income/expense. -->
+        <div id="rm-tf-toggle" style="display:none;padding:8px 16px 0;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--txm);font-family:'Inter';cursor:pointer;">
+            <input type="checkbox" id="rm-inc-tf" onchange="renderMonR()" style="width:16px;height:16px;accent-color:var(--primary);flex-shrink:0;"/>
+            Sertakan transfer masuk/keluar (net saldo akun ini)
+          </label>
+        </div>
         <!-- Chart card -->
         <div style="margin:12px 16px 0;background:white;border-radius:18px;padding:18px 16px 14px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
@@ -2912,6 +2922,14 @@ function renderMonR(){
   var ac=(document.getElementById('rm-ac')||{}).value||'';
   var cat=(document.getElementById('rm-cat')||{}).value||'';
   var type=(document.getElementById('rm-type')||{}).value||'';
+  // Transfer in/out only means something as "cash flow" when we're looking
+  // at ONE specific account — that's the one place a transfer really is a
+  // saldo movement (money leaving/entering that account), rather than a
+  // wash between two of the user's own accounts. So the checkbox only
+  // shows, and only takes effect, when an account is selected.
+  var tfToggle=document.getElementById('rm-tf-toggle');
+  if(tfToggle)tfToggle.style.display=ac?'block':'none';
+  var incTf=!!(ac&&document.getElementById('rm-inc-tf')&&document.getElementById('rm-inc-tf').checked);
   var txns=ac?allTxns.filter(function(t){return t.account===ac;}):allTxns;
   if(yr)txns=txns.filter(function(t){return t.date.indexOf(yr)===0;});
   if(cat)txns=txns.filter(function(t){return t.category===cat;});
@@ -2920,7 +2938,7 @@ function renderMonR(){
 
   var bm={};
   txns.forEach(function(t){
-    if(isTf(t.category))return;
+    if(!incTf&&isTf(t.category))return;
     var m=t.date.slice(0,7);
     if(!bm[m])bm[m]={e:0,i:0,n:0};
     if(t.amount<0)bm[m].e+=Math.abs(t.amount);
@@ -2936,7 +2954,7 @@ function renderMonR(){
 
   // Update period label
   var pLbl=document.getElementById('rm-period-lbl');
-  if(pLbl)pLbl.textContent=yr?(months.length+' bulan di '+yr):(months.length+' bulan total');
+  if(pLbl)pLbl.textContent=(yr?(months.length+' bulan di '+yr):(months.length+' bulan total'))+(incTf?' · termasuk transfer':'');
 
   // Update legend to match the active type filter
   var legendEl=document.getElementById('rm-legend');
