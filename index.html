@@ -897,6 +897,10 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
             <span onclick="clearCatPeriod()" style="cursor:pointer;color:var(--blue);font-size:12px;font-weight:700;font-family:'Inter';flex-shrink:0;">✕ Hapus</span>
           </div>
         </div>
+        <!-- Only shown when a single account is selected: the account's
+             actual current balance, independent of whatever period/type
+             filter is active above (a running total, not a period sum). -->
+        <div id="rc-acct-bal" style="display:none;padding:8px 16px 0;"></div>
         <div style="padding-top:4px;"></div>
         <div class="tcard"><div class="ctitle" id="rc-ctitle">Distribusi Pengeluaran</div><div class="cwrap-md"><canvas id="catChart"></canvas></div></div>
         <div class="clist" id="rp-clist"></div>
@@ -923,6 +927,9 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
             Sertakan transfer masuk/keluar (net saldo akun ini)
           </label>
         </div>
+        <!-- Only shown when one account is selected: the account's actual
+             current balance, independent of the period/type filters. -->
+        <div id="rm-acct-bal" style="display:none;padding:8px 16px 0;"></div>
         <!-- Chart card -->
         <div style="margin:12px 16px 0;background:white;border-radius:18px;padding:18px 16px 14px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
@@ -952,6 +959,9 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         <div style="padding:8px 16px 0;">
           <select id="ry-type" onchange="renderYrR()" class="fi" style="width:100%;padding:9px 12px;font-size:13px;"><option value="">Semua Tipe</option><option value="income">Pemasukan Saja</option><option value="expense">Pengeluaran Saja</option></select>
         </div>
+        <!-- Only shown when one account is selected: the account's actual
+             current balance, independent of the period/type filters. -->
+        <div id="ry-acct-bal" style="display:none;padding:8px 16px 0;"></div>
         <!-- Chart card -->
         <div style="margin:12px 16px 0;background:white;border-radius:18px;padding:18px 16px 14px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
@@ -2717,6 +2727,25 @@ function clearCatPeriod(){
   renderCatR();
 }
 
+// Shows the selected account's actual current balance (acctBals — a
+// running total, NOT a sum over whatever period/type filter is active)
+// in a Laporan sub-tab. Shared by Kategori/Bulanan/Tahunan since all three
+// let you scope the report to one account and "berapa saldo akhir akun
+// ini sekarang" is a different question from "berapa arus kas periode
+// ini" — hidden entirely when "Semua Akun" is selected, since it's not a
+// single balance at that point.
+function updateReportAcctBal(elId,ac){
+  var el=document.getElementById(elId);
+  if(!el)return;
+  if(!ac){el.style.display='none';el.innerHTML='';return;}
+  var b=acctBals[ac]||0;
+  el.style.display='block';
+  el.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--card2,#f5f5f5);border:1px solid var(--bdr);border-radius:10px;padding:9px 12px;">' +
+    '<span style="font-size:12px;color:var(--txm);font-family:\'Inter\';">Saldo Akhir '+al(ac)+'</span>' +
+    '<span style="font-family:\'Manrope\';font-weight:800;font-size:14px;color:'+(b<0?'var(--red)':'var(--green)')+';">'+idr(b)+'</span>' +
+  '</div>';
+}
+
 // Re-renders whichever Laporan sub-tab (Kategori/Bulanan/Tahunan) is
 // currently active. Needed because saveEdit()/deleteTxn() previously only
 // refreshed the dashboard/transactions/accounts views — editing or
@@ -2732,6 +2761,7 @@ function refreshActiveReport(){
 }
 function renderCatR(){
   var yr=(document.getElementById('rc-yr')||{}).value||'';var mo=(document.getElementById('rc-mo')||{}).value||'';var ac=(document.getElementById('rc-ac')||{}).value||'';
+  updateReportAcctBal('rc-acct-bal',ac);
   var typeVal=(document.getElementById('rc-type')||{}).value||'expense';
   var isAll=typeVal==='all';
   // "Transfer" reuses the exact same combined/signed rendering as "Semua"
@@ -2955,6 +2985,7 @@ function renderMonR(){
   var yr=(document.getElementById('rm-yr')||{}).value||'';
   var mo=(document.getElementById('rm-mo')||{}).value||'';
   var ac=(document.getElementById('rm-ac')||{}).value||'';
+  updateReportAcctBal('rm-acct-bal',ac);
   var cat=(document.getElementById('rm-cat')||{}).value||'';
   var type=(document.getElementById('rm-type')||{}).value||'';
   // Transfer in/out only means something as "cash flow" when we're looking
@@ -3225,6 +3256,7 @@ var monPieCI=null; // kept as a no-op reference so destroy-chart cleanup elsewhe
 function renderYrR(){
   hideChartDetailTooltip();
   var ac=(document.getElementById('ry-ac')||{}).value||'';
+  updateReportAcctBal('ry-acct-bal',ac);
   var cat=(document.getElementById('ry-cat')||{}).value||'';
   var type=(document.getElementById('ry-type')||{}).value||'';
   var txns=ac?allTxns.filter(function(t){return t.account===ac;}):allTxns;
