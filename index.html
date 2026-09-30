@@ -625,6 +625,10 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <div class="dsb-ico" style="background:#fff3e0;"><span class="ms" style="color:#d97706;">account_balance</span></div>
       Akun
     </div>
+    <div class="dsb-item" id="dsb-recent" onclick="switchTab('recent')">
+      <div class="dsb-ico" style="background:#f3e8ff;"><span class="ms" style="color:#9333ea;">history</span></div>
+      Terbaru
+    </div>
     <div class="dsb-item" id="dsb-transactions" onclick="switchTab('transactions')">
       <div class="dsb-ico" style="background:var(--blue-bg);"><span class="ms" style="color:var(--blue);">receipt_long</span></div>
       Transaksi
@@ -814,6 +818,22 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         <select id="ad-year" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Tahun</option></select>
       </div>
       <div id="ad-txns"></div>
+    </div>
+  </div>
+
+  <!-- ====== RECENT TRANSACTIONS ====== -->
+  <div class="page" id="pg-recent">
+    <div class="phdr">
+      <div class="bbtn" onclick="switchTab('dashboard')"><span class="ms">home</span></div>
+      <div class="phdr-t">Transaksi Terbaru</div>
+      <div style="display:flex;gap:7px;align-items:center;">
+        <span class="sync-ind" title="Sync status" onclick="refreshSync()">☁</span>
+        <div class="ibtn" style="background:var(--primary-light);border-color:rgba(183,19,26,.2);color:var(--primary);" onclick="openAddDrawer()"><span class="ms">add</span></div>
+        <div class="ibtn" onclick="openSideMenu()"><span class="ms">menu</span></div>
+      </div>
+    </div>
+    <div class="pcontent">
+      <div id="recent-list"></div>
     </div>
   </div>
 
@@ -1145,6 +1165,9 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     </div>
     <div class="sm-item" id="sm-accounts" onclick="smGo('accounts')">
       <div class="sm-ico" style="background:#fff3e0;"><span class="ms" style="color:#d97706;font-size:17px;">account_balance</span></div>Akun
+    </div>
+    <div class="sm-item" id="sm-recent" onclick="smGo('recent')">
+      <div class="sm-ico" style="background:#f3e8ff;"><span class="ms" style="color:#9333ea;font-size:17px;">history</span></div>Terbaru
     </div>
     <div class="sm-item" onclick="smGo('more')">
       <div class="sm-ico" style="background:var(--card2);"><span class="ms" style="color:var(--txm);font-size:17px;">more_horiz</span></div>Lainnya
@@ -2311,6 +2334,7 @@ function switchTab(t,fromPop){
   }
   curTab=t;
   if(t==='accounts')renderAccts();
+  if(t==='recent')renderRecent();
   if(t==='transactions')filterTxns();
   if(t==='reports')renderCatR();
   if(t==='more')updateUserUI();
@@ -2673,6 +2697,21 @@ var tfMode='all',tShown=50,tfiltd=[];
 function setTF(f){tfMode=f;['all','expense','income','transfer'].forEach(function(x){var el=document.getElementById('fc-'+x);if(el)el.classList.toggle('active',x===f);});filterTxns();}
 function filterTxns(){var q=(document.getElementById('tsearch')||{}).value||'';q=q.toLowerCase();var ac=(document.getElementById('fc-acct')||{}).value||'';var yr=(document.getElementById('fc-year')||{}).value||'';var mo=(document.getElementById('fc-month')||{}).value||'';tfiltd=allTxns.filter(function(t){if(ac&&t.account!==ac)return false;if(yr&&t.date.indexOf(yr)!==0)return false;if(mo&&t.date.slice(5,7)!==mo)return false;if(q&&t.payee.toLowerCase().indexOf(q)===-1&&(t.remarks||'').toLowerCase().indexOf(q)===-1)return false;if(tfMode==='expense')return t.amount<0&&!isTf(t.category);if(tfMode==='income')return t.amount>0&&!isTf(t.category);if(tfMode==='transfer')return isTf(t.category);return true;});tShown=50;renderTxns();}
 function renderTxns(){var pg=tfiltd.slice(0,tShown);var h=renderGrp(grpByDate(pg),true);if(tShown<tfiltd.length)h+='<div class="lmbtn" onclick="tShown+=50;renderTxns()">Muat '+(tfiltd.length-tShown)+' lagi</div>';document.getElementById('tlist').innerHTML=h||'<div class="empty"><div class="empty-ico">🔍</div><div>Tidak ada transaksi</div></div>';}
+
+// ── RECENT TRANSACTIONS (quick-glance page, no filters) ────────────────
+// A lighter-weight companion to the full Transaksi tab: just the latest
+// N transactions across every account, newest first, with account names
+// shown since it spans all of them. allTxns is already kept sorted
+// newest-first (every mutation re-sorts it), so this is a plain slice.
+var recentShown=30;
+function renderRecent(){
+  var el=document.getElementById('recent-list');if(!el)return;
+  var pg=allTxns.slice(0,recentShown);
+  if(!pg.length){el.innerHTML='<div class="empty"><div class="empty-ico">📭</div><div>Tidak ada transaksi</div></div>';return;}
+  var h=renderGrp(grpByDate(pg),true);
+  if(recentShown<allTxns.length)h+='<div class="lmbtn" onclick="recentShown+=30;renderRecent()">Muat '+(Math.min(30,allTxns.length-recentShown))+' lagi</div>';
+  el.innerHTML=h;
+}
 function grpByDate(txns){var g={};txns.forEach(function(t){if(!g[t.date])g[t.date]=[];g[t.date].push(t);});return g;}
 function renderGrp(groups,showAcct){
   return Object.entries(groups).sort(function(a,b){return b[0]>a[0]?1:-1;}).map(function(entry){
@@ -3826,6 +3865,7 @@ function autoMatchTransfers(showResult){
     renderDash();
     if(curTab==='transactions')renderTxns();
     if(curTab==='accounts')renderAccts();
+    if(curTab==='recent')renderRecent();
     refreshAD();
   }
   if(showResult){
@@ -3948,6 +3988,7 @@ function autoCreateRemainingTransferPairs(){
   renderDash();
   if(curTab==='transactions')renderTxns();
   if(curTab==='accounts')renderAccts();
+  if(curTab==='recent')renderRecent();
   refreshAD();
 
   var msg='✅ '+pairedCount+' pasangan transfer dibuat otomatis';
@@ -4107,6 +4148,7 @@ function submitTransferRepair(){
   renderDash();
   if(curTab==='transactions')renderTxns();
   if(curTab==='accounts')renderAccts();
+  if(curTab==='recent')renderRecent();
   refreshAD();
   var msg='✅ '+created+' pasangan transfer dibuat';
   if(newAccts.length>0)msg+=', '+newAccts.length+' akun baru dibuat ('+newAccts.join(', ')+')';
@@ -4214,7 +4256,7 @@ function convertTransferToExpense(){
   allTxns.forEach(function(x,i){x._id=i;});
   refreshCatYearLists();
   saveData();
-  renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();refreshAD();refreshActiveReport();
+  renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
   showToast('✅ Diubah jadi pengeluaran — pilih kategori yang sesuai');
   openEditMode(); // t.category is no longer a transfer category, so this now opens the normal edit form
 }
@@ -4302,7 +4344,7 @@ function confirmConvertExpenseToTransfer(){
   refreshCatYearLists();
   saveData();
   cancelEdit();
-  renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();refreshAD();refreshActiveReport();
+  renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
   showToast('✅ Diubah jadi transfer ke '+destLabel);
   closeDrawer('txnd-dover');
 }
@@ -4391,6 +4433,7 @@ function saveEditTransfer(){
   renderDash();
   if(curTab==='transactions')renderTxns();
   if(curTab==='accounts')renderAccts();
+  if(curTab==='recent')renderRecent();
   refreshAD();
   refreshActiveReport();
 }
@@ -4414,7 +4457,7 @@ function saveEdit(){
   acctBals[newAcct]=(acctBals[newAcct]||0)+newAmt;
   allTxns.sort(function(a,b){return b.date>a.date?1:-1;});allTxns.forEach(function(t,i){t._id=i;});
   refreshCatYearLists();
-  saveData();closeDrawer('txnd-dover');showToast('✅ Transaksi diperbarui');renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();refreshAD();refreshActiveReport();
+  saveData();closeDrawer('txnd-dover');showToast('✅ Transaksi diperbarui');renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
 }
 function deleteTxn(){
   if(!txndCurrent)return;
@@ -4430,7 +4473,7 @@ function deleteTxn(){
   });
   allTxns.forEach(function(t,i){t._id=i;});
   refreshCatYearLists();
-  saveData();closeDrawer('txnd-dover');showToast(pair?'🗑️ Transfer dihapus':'🗑️ Transaksi dihapus');renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();refreshAD();refreshActiveReport();
+  saveData();closeDrawer('txnd-dover');showToast(pair?'🗑️ Transfer dihapus':'🗑️ Transaksi dihapus');renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
 }
 
 // ── ADD TRANSACTION ───────────────────────────────
@@ -4485,7 +4528,7 @@ function submitAdd(){
   if(!RAW_DATA[ac])RAW_DATA[ac]=[];RAW_DATA[ac].push({payee:py,category:cat,amount:finalAmt,date:dt,remarks:rm});
   acctBals[ac]=(acctBals[ac]||0)+finalAmt;
   refreshCatYearLists();
-  saveData();closeDrawer('add-dover');showToast('✅ Transaksi ditambahkan!');renderDash();if(curTab==='transactions')filterTxns();if(curTab==='accounts')renderAccts();refreshAD();refreshActiveReport();
+  saveData();closeDrawer('add-dover');showToast('✅ Transaksi ditambahkan!');renderDash();if(curTab==='transactions')filterTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
 }
 
 // ── TRANSFER ──────────────────────────────────────
@@ -4500,7 +4543,7 @@ function submitTf(){
   if(!RAW_DATA[fr])RAW_DATA[fr]=[];if(!RAW_DATA[to])RAW_DATA[to]=[];
   RAW_DATA[fr].push(Object.assign({},outT));RAW_DATA[to].push(Object.assign({},inT));
   acctBals[fr]-=am;acctBals[to]+=am;
-  saveData();closeDrawer('tf-dover');showToast('✅ Transfer Rp '+ff(am));renderDash();if(curTab==='transactions')filterTxns();if(curTab==='accounts')renderAccts();refreshAD();refreshActiveReport();
+  saveData();closeDrawer('tf-dover');showToast('✅ Transfer Rp '+ff(am));renderDash();if(curTab==='transactions')filterTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
 }
 
 // ── FAB ───────────────────────────────────────────
@@ -4553,8 +4596,8 @@ function openSideMenu(){
   var syncDot=document.getElementById('sm-sync-dot');
   if(syncDot){var si=document.getElementById('sync-indicator');if(si)syncDot.textContent=si.textContent;}
   // Active nav
-  ['overview','transactions','reports','accounts'].forEach(function(id){var el=document.getElementById('sm-'+id);if(el)el.classList.remove('active');});
-  var map={dashboard:'overview',transactions:'transactions',reports:'reports',accounts:'accounts'};
+  ['overview','transactions','reports','accounts','recent'].forEach(function(id){var el=document.getElementById('sm-'+id);if(el)el.classList.remove('active');});
+  var map={dashboard:'overview',transactions:'transactions',reports:'reports',accounts:'accounts',recent:'recent'};
   if(map[curTab]){var el=document.getElementById('sm-'+map[curTab]);if(el)el.classList.add('active');}
 }
 function closeSideMenu(fromPop){document.getElementById('sidemenu').style.left='-280px';document.getElementById('sidemenu-overlay').style.display='none';if(!fromPop)mlbPopIfNeeded();}
@@ -5339,7 +5382,7 @@ switchTab = function(t,fromPop) {
   if (isDesktop) {
     movePageToDesktop();
     // Update topbar title
-    var titles = {dashboard:'Overview', accounts:'Akun', transactions:'Transaksi', reports:'Laporan', more:'Lainnya', 'acct-detail':'Detail Akun'};
+    var titles = {dashboard:'Overview', accounts:'Akun', recent:'Transaksi Terbaru', transactions:'Transaksi', reports:'Laporan', more:'Lainnya', 'acct-detail':'Detail Akun'};
     var tb = document.getElementById('desktop-topbar-title');
     if (tb) tb.textContent = titles[t] || 'Mlebumetu';
     // Fix page height for desktop
@@ -5350,7 +5393,7 @@ switchTab = function(t,fromPop) {
 };
 
 function updateDesktopNav(tab) {
-  var ids = ['dashboard','accounts','transactions','reports','more'];
+  var ids = ['dashboard','accounts','recent','transactions','reports','more'];
   ids.forEach(function(id) {
     var el = document.getElementById('dsb-' + id);
     if (el) el.classList.toggle('active', id === tab);
@@ -5944,7 +5987,7 @@ function doReset(){
   // all-accounts case (ends up empty either way).
   saveData();
 
-  renderDash();renderTxns();renderAccts();refreshAD();
+  renderDash();renderTxns();renderAccts();renderRecent();refreshAD();
   ['cat','monthly','yearly'].forEach(function(x){
     var el=document.getElementById('rp-'+x);
     if(el)el.innerHTML='';
@@ -6329,6 +6372,7 @@ function refreshSync() {
     renderDash();
     if (curTab === 'transactions') renderTxns();
     if (curTab === 'accounts') renderAccts();
+    if (curTab === 'recent') renderRecent();
     if (curTab === 'reports') renderCatR();
     showToast('✅ Data diperbarui!');
   }, 2000);
