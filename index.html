@@ -874,11 +874,15 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       </div>
       <!-- Category -->
       <div id="rp-cat">
+        <!-- Filter order kept consistent across Kategori/Bulanan/Tahunan:
+             Akun → Tipe → Kategori (when the tab has one) → Tahun → Bulan. -->
         <div style="padding:12px 16px 0;display:flex;gap:8px;flex-wrap:wrap;">
+          <select id="rc-ac" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="">Semua Akun</option></select>
           <select id="rc-type" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="expense" selected>Pengeluaran</option><option value="income">Pemasukan</option><option value="all">Semua</option><option value="transfer">Transfer</option></select>
+        </div>
+        <div style="padding:8px 16px 0;display:flex;gap:8px;flex-wrap:wrap;">
           <select id="rc-yr" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="">Semua Tahun</option></select>
           <select id="rc-mo" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="">Semua Bulan</option><option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option><option value="04">Apr</option><option value="05">Mei</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Ags</option><option value="09">Sep</option><option value="10">Okt</option><option value="11">Nov</option><option value="12">Des</option></select>
-          <select id="rc-ac" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="">Semua Akun</option></select>
         </div>
         <div style="padding:8px 16px 0;display:flex;gap:8px;flex-wrap:wrap;">
           <button type="button" onclick="setCatPeriodPreset(2)" style="background:var(--card2);border:1px solid var(--bdr);border-radius:10px;padding:8px 13px;font-family:'Inter';font-size:12px;font-weight:600;color:var(--tx);cursor:pointer;">2 Bulan Terakhir</button>
@@ -907,15 +911,17 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       </div>
       <!-- Monthly -->
       <div id="rp-monthly" style="display:none;">
-        <!-- Filters -->
+        <!-- Filters — same order as Kategori/Tahunan: Akun → Tipe → Kategori → Tahun → Bulan. -->
         <div style="display:flex;gap:8px;padding:12px 16px 0;">
-          <select id="rm-yr" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"></select>
-          <select id="rm-mo" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"><option value="">Semua Bulan</option></select>
           <select id="rm-ac" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"><option value="">Semua Akun</option></select>
+          <select id="rm-type" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"><option value="">Semua Tipe</option><option value="income">Pemasukan Saja</option><option value="expense">Pengeluaran Saja</option><option value="transfer">Transfer Saja</option></select>
         </div>
         <div style="display:flex;gap:8px;padding:8px 16px 0;">
           <select id="rm-cat" onchange="renderMonR()" class="fi" style="display:none;"><option value="">Semua Kategori</option></select><div class="fi cat-picker-btn" id="rm-cat-btn" onclick="openCatPicker('rm-cat')" style="flex:1;display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:9px 12px;font-size:13px;"><span id="rm-cat-btn-txt" style="color:var(--txm);">Semua Kategori</span><span class="ms" style="font-size:16px;color:var(--txm);">expand_more</span></div>
-          <select id="rm-type" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"><option value="">Semua Tipe</option><option value="income">Pemasukan Saja</option><option value="expense">Pengeluaran Saja</option><option value="transfer">Transfer Saja</option></select>
+        </div>
+        <div style="display:flex;gap:8px;padding:8px 16px 0;">
+          <select id="rm-yr" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"></select>
+          <select id="rm-mo" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"><option value="">Semua Bulan</option></select>
         </div>
         <!-- Only shown when one account is selected: lets transfer in/out of
              that account count toward its Masuk/Keluar/Net, so the chart
@@ -952,12 +958,13 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       </div>
       <!-- Yearly -->
       <div id="rp-yearly" style="display:none;">
+        <!-- Same order as Kategori/Bulanan: Akun → Tipe → Kategori (no Tahun/Bulan here — Tahunan already spans every year). -->
         <div style="padding:12px 16px 0;display:flex;gap:8px;">
           <select id="ry-ac" onchange="renderYrR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"><option value="">Semua Akun</option></select>
-          <select id="ry-cat" onchange="renderYrR()" class="fi" style="display:none;"><option value="">Semua Kategori</option></select><div class="fi cat-picker-btn" id="ry-cat-btn" onclick="openCatPicker('ry-cat')" style="flex:1;display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:9px 12px;font-size:13px;"><span id="ry-cat-btn-txt" style="color:var(--txm);">Semua Kategori</span><span class="ms" style="font-size:16px;color:var(--txm);">expand_more</span></div>
+          <select id="ry-type" onchange="renderYrR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"><option value="">Semua Tipe</option><option value="income">Pemasukan Saja</option><option value="expense">Pengeluaran Saja</option></select>
         </div>
         <div style="padding:8px 16px 0;">
-          <select id="ry-type" onchange="renderYrR()" class="fi" style="width:100%;padding:9px 12px;font-size:13px;"><option value="">Semua Tipe</option><option value="income">Pemasukan Saja</option><option value="expense">Pengeluaran Saja</option></select>
+          <select id="ry-cat" onchange="renderYrR()" class="fi" style="display:none;"><option value="">Semua Kategori</option></select><div class="fi cat-picker-btn" id="ry-cat-btn" onclick="openCatPicker('ry-cat')" style="width:100%;display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:9px 12px;font-size:13px;"><span id="ry-cat-btn-txt" style="color:var(--txm);">Semua Kategori</span><span class="ms" style="font-size:16px;color:var(--txm);">expand_more</span></div>
         </div>
         <!-- Only shown when one account is selected: the account's actual
              current balance, independent of the period/type filters. -->
