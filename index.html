@@ -875,7 +875,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <!-- Category -->
       <div id="rp-cat">
         <div style="padding:12px 16px 0;display:flex;gap:8px;flex-wrap:wrap;">
-          <select id="rc-type" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="expense" selected>Pengeluaran</option><option value="income">Pemasukan</option><option value="all">Semua</option></select>
+          <select id="rc-type" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="expense" selected>Pengeluaran</option><option value="income">Pemasukan</option><option value="all">Semua</option><option value="transfer">Transfer</option></select>
           <select id="rc-yr" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="">Semua Tahun</option></select>
           <select id="rc-mo" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="">Semua Bulan</option><option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option><option value="04">Apr</option><option value="05">Mei</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Ags</option><option value="09">Sep</option><option value="10">Okt</option><option value="11">Nov</option><option value="12">Des</option></select>
           <select id="rc-ac" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="">Semua Akun</option></select>
@@ -2734,15 +2734,25 @@ function renderCatR(){
   var yr=(document.getElementById('rc-yr')||{}).value||'';var mo=(document.getElementById('rc-mo')||{}).value||'';var ac=(document.getElementById('rc-ac')||{}).value||'';
   var typeVal=(document.getElementById('rc-type')||{}).value||'expense';
   var isAll=typeVal==='all';
+  // "Transfer" reuses the exact same combined/signed rendering as "Semua"
+  // below (a transfer category is realistically either Keluar-flavored,
+  // i.e. negative, or Masuk-flavored, i.e. positive — same as any other
+  // category, so no new chart logic is needed) but restricted to transfer
+  // categories only, so the account filter above it can answer "how much
+  // moved in/out of this account via transfer this period".
+  var isTransferOnly=typeVal==='transfer';
   // catMode stays the single source of truth other functions (openCD,
   // openPayeeReport, the Dashboard's own category widgets) read from —
-  // in "Semua" mode there's no one fixed side, so it gets set per-click
-  // below instead, based on whichever category was actually tapped.
-  if(!isAll)catMode=typeVal;
+  // in "Semua"/"Transfer" mode there's no one fixed side, so it gets set
+  // per-click below instead, based on whichever category was actually
+  // tapped.
+  if(!isAll&&!isTransferOnly)catMode=typeVal;
   var isIncome=catMode==='income';
-  var txns=isAll
-    ? allTxns.filter(function(t){return!isTf(t.category);})
-    : allTxns.filter(function(t){return(isIncome?t.amount>0:t.amount<0)&&!isTf(t.category);});
+  var txns=isTransferOnly
+    ? allTxns.filter(function(t){return isTf(t.category);})
+    : isAll
+      ? allTxns.filter(function(t){return!isTf(t.category);})
+      : allTxns.filter(function(t){return(isIncome?t.amount>0:t.amount<0)&&!isTf(t.category);});
   var yrSel=document.getElementById('rc-yr'),moSel=document.getElementById('rc-mo');
   var periodActiveEl=document.getElementById('rc-period-active'),periodLabelEl=document.getElementById('rc-period-label');
   var mf;
@@ -2769,19 +2779,22 @@ function renderCatR(){
   }
   if(ac)txns=txns.filter(function(t){return t.account===ac;});
 
-  if(isAll){
+  if(isAll||isTransferOnly){
     // Combined view: each category keeps its own net sign (a category is
     // realistically either expense- or income-flavored, rarely a genuine
-    // mix) rather than forcing one global sign for the whole widget.
+    // mix) rather than forcing one global sign for the whole widget. Same
+    // code serves "Semua" (all non-transfer categories) and "Transfer"
+    // (txns is already narrowed to isTf categories above) — the only
+    // difference is the title/subtotal wording below.
     var bcSigned={};
     txns.forEach(function(t){bcSigned[t.category]=(bcSigned[t.category]||0)+t.amount;});
     var sortedAll=Object.entries(bcSigned).sort(function(a,b){return Math.abs(b[1])-Math.abs(a[1]);});
     var netTotal=sortedAll.reduce(function(s,e){return s+e[1];},0);
     var titleElAll=document.getElementById('rc-ctitle');
-    if(titleElAll)titleElAll.textContent='Distribusi Semua Kategori';
+    if(titleElAll)titleElAll.textContent=isTransferOnly?'Distribusi Transfer (Masuk/Keluar)':'Distribusi Semua Kategori';
     if(catCI)catCI.destroy();
     var canvasAll=document.getElementById('catChart');if(!canvasAll)return;
-    catCI=new Chart(canvasAll,{type:'doughnut',data:{labels:sortedAll.slice(0,10).map(function(e){return e[0];}),datasets:[{data:sortedAll.slice(0,10).map(function(e){return Math.abs(e[1]);}),backgroundColor:CC,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false},centerText:{text:(netTotal>=0?'+':'-')+'Rp '+fn(Math.abs(netTotal)),subLabel:'Net',color:netTotal>=0?'#006e1c':'#b7131a'}}}});
+    catCI=new Chart(canvasAll,{type:'doughnut',data:{labels:sortedAll.slice(0,10).map(function(e){return e[0];}),datasets:[{data:sortedAll.slice(0,10).map(function(e){return Math.abs(e[1]);}),backgroundColor:CC,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false},centerText:{text:(netTotal>=0?'+':'-')+'Rp '+fn(Math.abs(netTotal)),subLabel:isTransferOnly?(ac?'Net Transfer Akun Ini':'Net Transfer'):'Net',color:netTotal>=0?'#006e1c':'#b7131a'}}}});
     var elAll=document.getElementById('rp-clist');if(!elAll)return;
     var maxAbsAll=sortedAll.length?Math.abs(sortedAll[0][1]):1;
     elAll.innerHTML=sortedAll.map(function(e,i){
@@ -2899,7 +2912,7 @@ function viewMonthDetail(monthKey){
   var rmCat=(document.getElementById('rm-cat')||{}).value||'';
   var rmAc=(document.getElementById('rm-ac')||{}).value||'';
   var rmType=(document.getElementById('rm-type')||{}).value||'';
-  var rcType=rmType==='income'?'income':(rmType==='expense'?'expense':'all');
+  var rcType=rmType==='income'?'income':(rmType==='expense'?'expense':(rmType==='transfer'?'transfer':'all'));
   catMode=rcType==='income'?'income':'expense';
   if(rmCat){
     openCD(rmCat,monthKey,rmAc);
