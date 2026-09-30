@@ -96,7 +96,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Inter',s
 .uav{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--primary),#db322f);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;overflow:hidden;flex-shrink:0;font-family:'Manrope';}
 .uav img{width:100%;height:100%;border-radius:50%;object-fit:cover;}
 #sync-indicator{font-size:15px;padding:4px;cursor:default;color:var(--txm);}
-.sync-ind{font-size:15px;padding:4px;cursor:pointer;color:var(--txm);}
+.sync-ind{font-size:15px;padding:4px;cursor:pointer;color:var(--txm);display:inline-block;}
+.sync-ind.mlb-spin{animation:spin 0.9s linear infinite;}
+.sync-ind.mlb-stuck{animation:mlbStuckPulse 1s ease-in-out infinite;}
+@keyframes mlbStuckPulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.sync-sub{font-size:11px;color:var(--txm);font-family:'Inter';margin-top:1px;display:block;}
 
 /* ===== USER MENU ===== */
 .umenu{position:fixed;top:calc(var(--st) + 58px);right:12px;background:var(--card);border:1px solid var(--bdr);border-radius:16px;padding:8px;z-index:300;min-width:190px;display:none;box-shadow:0 8px 32px rgba(0,0,0,.1);}
@@ -609,7 +613,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <div class="dsb-uname" id="dsb-name">User</div>
       <div class="dsb-uemail" id="dsb-email"></div>
     </div>
-    <span id="dsb-sync" title="Sync status" style="font-size:14px;color:var(--txm);">☁</span>
+    <span id="dsb-sync" class="sync-ind" title="Sync status" onclick="event.stopPropagation();refreshSync();" style="font-size:14px;color:var(--txm);cursor:pointer;">☁</span>
   </div>
   <div class="dsb-nav">
     <div class="dsb-section">Navigasi</div>
@@ -697,7 +701,10 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     </div>
     <div class="umitem" id="firebase-status-item">
       <span class="ms" style="font-size:16px;color:var(--txm);">cloud</span>
-      <span id="firebase-status-text" style="font-size:12px;line-height:1.4;">Cloud sync: tidak aktif</span>
+      <div>
+        <span id="firebase-status-text" style="font-size:12px;line-height:1.4;">Cloud sync: tidak aktif</span>
+        <span id="firebase-status-sub" class="sync-sub"></span>
+      </div>
     </div>
     <div class="umitem danger" onclick="signOut()">
       <span class="ms" style="font-size:16px;">logout</span> Keluar
@@ -977,9 +984,12 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         </div>
       </div>
       <div class="sec-head">Data & Sync</div>
-      <div id="more-firebase-item" class="mitem">
-        <div class="mico" style="background:var(--blue-bg);"><span class="ms" style="color:var(--blue);">cloud_sync</span></div>
-        <div class="mlbl"><span id="firebase-status-text2" style="font-size:13px;line-height:1.5;">Cloud sync: tidak aktif</span></div>
+      <div id="more-firebase-item" class="mitem" onclick="refreshSync()" style="cursor:pointer;">
+        <div class="mico" style="background:var(--blue-bg);"><span id="firebase-status-icon" class="ms" style="color:var(--blue);">cloud_sync</span></div>
+        <div class="mlbl">
+          <span id="firebase-status-text2" style="font-size:13px;line-height:1.5;">Cloud sync: tidak aktif</span>
+          <span id="firebase-status-sub2" class="sync-sub"></span>
+        </div>
       </div>
       <div class="mitem" onclick="openImportDrawer()">
         <div class="mico" style="background:var(--green-bg);"><span class="ms" style="color:var(--green);">upload_file</span></div>
@@ -5071,7 +5081,76 @@ function handleShortcutAction(){
   else if (action === 'transfer') openTfDrawer();
 }
 
-function showSyncIndicator(state){var els=document.querySelectorAll('.sync-ind');if(!els.length)return;var icons={syncing:'↻',synced:'☁',offline:'⚠'};var colors={syncing:'var(--txm)',synced:'var(--green)',offline:'orange'};var txt=icons[state]||'☁',col=colors[state]||'var(--txm)';els.forEach(function(el){el.textContent=txt;el.style.color=col;});}
+// ── SYNC PROGRESS / STUCK DETECTION ───────────────
+// Firebase writes/reads normally resolve in 1-3s. If a 'syncing' state
+// stays up longer than SYNC_STUCK_MS with no follow-up call resolving it
+// to 'synced'/'offline', we now flip the indicator to a distinct 'stuck'
+// state so the user isn't left staring at a spinner that never explains
+// itself (this was the actual bug report: "belum sync tapi tidak
+// kelihatan apakah ini masih progress apa stuck").
+var SYNC_STUCK_MS = 12000;
+var _syncWatchdog = null;
+var LAST_SYNC_KEY = 'mlebumetu_last_sync_ts';
+
+function mlbTimeAgo(ts){
+  if(!ts) return '';
+  var s = Math.floor((Date.now()-ts)/1000);
+  if(s<5) return 'baru saja';
+  if(s<60) return s+' detik lalu';
+  var m = Math.floor(s/60);
+  if(m<60) return m+' menit lalu';
+  var h = Math.floor(m/60);
+  if(h<24) return h+' jam lalu';
+  var d = Math.floor(h/24);
+  return d+' hari lalu';
+}
+
+function showSyncIndicator(state){
+  clearTimeout(_syncWatchdog);
+  if(state==='syncing'){
+    _syncWatchdog = setTimeout(function(){ showSyncIndicator('stuck'); }, SYNC_STUCK_MS);
+  }
+  if(state==='synced'){
+    try{ localStorage.setItem(LAST_SYNC_KEY, String(Date.now())); }catch(e){}
+  }
+
+  var els = document.querySelectorAll('.sync-ind');
+  var icons  = {syncing:'↻', synced:'☁', offline:'⚠', stuck:'⏱️'};
+  var colors = {syncing:'var(--txm)', synced:'var(--green)', offline:'orange', stuck:'#d9312b'};
+  var txt = icons[state] || '☁', col = colors[state] || 'var(--txm)';
+  var title = {
+    syncing: 'Menyinkronkan ke cloud…',
+    synced:  'Tersinkron ke cloud — klik untuk refresh',
+    offline: 'Gagal sync / offline — klik untuk coba lagi',
+    stuck:   'Sync macet lebih dari 12 detik — klik untuk coba lagi'
+  }[state] || 'Sync status';
+  els.forEach(function(el){
+    el.textContent = txt;
+    el.style.color = col;
+    el.title = title;
+    el.classList.toggle('mlb-spin', state==='syncing');
+    el.classList.toggle('mlb-stuck', state==='stuck');
+  });
+
+  // Detailed sub-line shown under the Firebase status text in the user
+  // menu and the "Lainnya" page, so the state is visible as words too,
+  // not just an icon color someone might miss.
+  var subText = {
+    syncing: '🔄 Sedang menyinkronkan…',
+    synced:  '✅ Tersinkron · ' + mlbTimeAgo(Date.now()),
+    offline: '⚠️ Gagal sync, tersimpan lokal — klik cloud untuk coba lagi',
+    stuck:   '⏱️ Sync macet, belum selesai >12 detik — klik cloud untuk coba lagi'
+  }[state] || '';
+  var sub1 = document.getElementById('firebase-status-sub');
+  var sub2 = document.getElementById('firebase-status-sub2');
+  if(sub1) sub1.textContent = subText;
+  if(sub2) sub2.textContent = subText;
+  var icoEl = document.getElementById('firebase-status-icon');
+  if(icoEl){
+    icoEl.style.color = (state==='offline'||state==='stuck') ? colors[state] : 'var(--blue)';
+    icoEl.style.animation = state==='syncing' ? 'spin 0.9s linear infinite' : '';
+  }
+}
 
 // ── GOOGLE / BOOT ─────────────────────────────────
 var googleInited=false;
@@ -5196,10 +5275,21 @@ updateUserUI = function() {
 var _origSync = showSyncIndicator;
 showSyncIndicator = function(state) {
   _origSync(state);
-  var icons  = {syncing:'↻', synced:'☁', offline:'⚠'};
-  var colors = {syncing:'var(--txm)', synced:'var(--green)', offline:'orange'};
+  var icons  = {syncing:'↻', synced:'☁', offline:'⚠', stuck:'⏱️'};
+  var colors = {syncing:'var(--txm)', synced:'var(--green)', offline:'orange', stuck:'#d9312b'};
+  var titles = {
+    syncing: 'Menyinkronkan ke cloud…',
+    synced:  'Tersinkron ke cloud — klik untuk refresh',
+    offline: 'Gagal sync / offline — klik untuk coba lagi',
+    stuck:   'Sync macet lebih dari 12 detik — klik untuk coba lagi'
+  };
   var dsbEl = document.getElementById('dsb-sync');
-  if (dsbEl) { dsbEl.textContent = icons[state]||'☁'; dsbEl.style.color = colors[state]||'var(--txm)'; }
+  if (dsbEl) {
+    dsbEl.textContent = icons[state]||'☁';
+    dsbEl.style.color = colors[state]||'var(--txm)';
+    dsbEl.title = titles[state]||'Sync status';
+    dsbEl.style.animation = state==='syncing' ? 'spin 0.9s linear infinite' : (state==='stuck' ? 'mlbStuckPulse 1s ease-in-out infinite' : '');
+  }
 };
 
 // ── Listen to resize ────────────────────────────
@@ -6115,9 +6205,13 @@ openFirebaseSetup = function() {
 // ── REFRESH SYNC ──────────────────────────────────
 function refreshSync() {
   var icon = document.getElementById('refresh-icon');
-  var sis  = document.querySelectorAll('.sync-ind');
   if (icon) icon.style.animation = 'spin 1s linear infinite';
-  sis.forEach(function(si){ si.textContent = '↻'; si.style.color = 'var(--txm)'; });
+  // Only arm the syncing/stuck indicator when a cloud sync is actually
+  // going to happen — loadData() falls back to local-only in the same
+  // condition, and starting the watchdog there would eventually flag a
+  // false "stuck" for a device with no cloud configured at all.
+  var usesCloud = firebaseReady && db && currentUser && !currentUser.isDemo;
+  if (usesCloud) showSyncIndicator('syncing');
   showToast('↻ Memuat ulang data…');
   // Clear and reload
   allTxns = [];
