@@ -458,6 +458,21 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
   }
   #desktop-topbar-actions { display: flex; gap: 8px; align-items: center; }
 
+  /* Desktop sync status pill (icon + words, since the page headers that
+     carry the mobile sync icon are hidden on desktop) */
+  .dtb-sync {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px; cursor: pointer;
+    font-family: 'Inter'; font-size: 12px; font-weight: 600;
+    background: var(--sur2, rgba(0,0,0,.05)); color: var(--txm);
+    border: 1px solid var(--bdr2); white-space: nowrap; user-select: none;
+    transition: background .2s, color .2s;
+  }
+  .dtb-sync:hover { filter: brightness(.97); }
+  .dtb-sync-ico { display: inline-block; font-size: 14px; line-height: 1; }
+  .dtb-sync-ico.mlb-spin { animation: spin 0.9s linear infinite; }
+  .dtb-sync-ico.mlb-stuck { animation: mlbStuckPulse 1s ease-in-out infinite; }
+
   /* Desktop content scroll */
   #desktop-content {
     flex: 1;
@@ -682,6 +697,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
   <div id="desktop-topbar" style="display:none;">
     <div id="desktop-topbar-title">Overview</div>
     <div id="desktop-topbar-actions">
+      <div id="dtb-sync" class="dtb-sync" onclick="refreshSync()" title="Status sync Firebase — klik untuk refresh"><span id="dtb-sync-ico" class="dtb-sync-ico">☁</span><span id="dtb-sync-txt">Sync</span></div>
       <div class="ibtn" onclick="openAddDrawer()" title="Tambah" style="width:36px;height:36px;border-radius:10px;background:var(--primary);border:1px solid var(--primary-dark);display:flex;align-items:center;justify-content:center;cursor:pointer;color:white;"><span class="ms">add</span></div>
       <div class="uchip" onclick="toggleUMenu()" id="uchip-desktop">
         <span class="uchip-n" id="chip-n-desktop">User</span>
@@ -5455,10 +5471,51 @@ updateUserUI = function() {
   if (chipAvD) chipAvD.innerHTML = avHtml;
 };
 
+// ── Desktop top-bar sync pill ───────────────────
+// Mirrors showSyncIndicator() state as icon + words + "x menit lalu", so the
+// web version shows sync progress (syncing / synced / offline / stuck) in a
+// place that's actually visible on desktop.
+var _dtbSyncState = 'idle';
+var _dtbSyncTs = 0;
+function dtbRenderSync(state){
+  if(state) _dtbSyncState = state;
+  var pill = document.getElementById('dtb-sync');
+  if(!pill) return;
+  var ico = document.getElementById('dtb-sync-ico');
+  var txt = document.getElementById('dtb-sync-txt');
+  var st = _dtbSyncState;
+  if(st==='synced' && !_dtbSyncTs) _dtbSyncTs = Date.now();
+  if(st==='idle'){
+    if(!_dtbSyncTs){ try{ _dtbSyncTs = parseInt(localStorage.getItem(LAST_SYNC_KEY)||'0',10)||0; }catch(e){} }
+  }
+  var ago = _dtbSyncTs ? mlbTimeAgo(_dtbSyncTs) : '';
+  var cfg = {
+    syncing: {i:'↻', t:'Menyinkronkan…',  c:'var(--txm)',   bg:'', tip:'Menyinkronkan ke cloud…'},
+    synced:  {i:'☁', t:'Tersinkron' + (ago ? ' · '+ago : ''), c:'var(--green)', bg:'var(--green-bg)', tip:'Tersinkron ke cloud — klik untuk refresh'},
+    offline: {i:'⚠', t:'Gagal sync · coba lagi', c:'#b45309', bg:'rgba(255,152,0,.14)', tip:'Gagal sync / offline — klik untuk coba lagi'},
+    stuck:   {i:'⏱️', t:'Sync macet · coba lagi', c:'#d9312b', bg:'var(--red-bg)', tip:'Sync macet lebih dari 12 detik — klik untuk coba lagi'},
+    idle:    {i:'☁', t: ago ? 'Sync terakhir · '+ago : 'Sync', c:'var(--txm)', bg:'', tip:'Status sync Firebase — klik untuk refresh'}
+  }[st] || {i:'☁', t:'Sync', c:'var(--txm)', bg:'', tip:'Status sync'};
+  ico.textContent = cfg.i;
+  txt.textContent = cfg.t;
+  pill.style.color = cfg.c;
+  pill.style.background = cfg.bg;
+  pill.title = cfg.tip;
+  ico.classList.toggle('mlb-spin', st==='syncing');
+  ico.classList.toggle('mlb-stuck', st==='stuck');
+}
+// Keep the relative time ("2 menit lalu") fresh while idle/synced
+setInterval(function(){
+  if(_dtbSyncState==='synced' || _dtbSyncState==='idle') dtbRenderSync();
+}, 30000);
+dtbRenderSync();
+
 // ── Override showSyncIndicator for desktop ──────
 var _origSync = showSyncIndicator;
 showSyncIndicator = function(state) {
   _origSync(state);
+  if(state==='synced') _dtbSyncTs = Date.now();
+  dtbRenderSync(state);
   var icons  = {syncing:'↻', synced:'☁', offline:'⚠', stuck:'⏱️'};
   var colors = {syncing:'var(--txm)', synced:'var(--green)', offline:'orange', stuck:'#d9312b'};
   var titles = {
