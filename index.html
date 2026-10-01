@@ -2165,8 +2165,41 @@ function openCatPicker(selectId){
   var search=document.getElementById('catpick-search');
   if(search)search.value='';
   renderCatPickerList(catPickOptions);
+  catPickResetFit();
   openDrawer('catpick-dover');
-  setTimeout(function(){if(search)search.focus();},320);
+  // On phones, auto-focusing the search box pops the keyboard instantly and
+  // it covers the category list. Only auto-focus where there's no on-screen
+  // keyboard; on touch devices the user taps the search box when needed and
+  // catPickFitViewport() lifts the drawer above the keyboard.
+  var touch=window.matchMedia&&window.matchMedia('(pointer:coarse)').matches;
+  if(!touch)setTimeout(function(){if(search)search.focus();},320);
+}
+// Keeps the category picker visible above the on-screen keyboard. Uses the
+// visual viewport so it works whether the browser resizes the layout
+// viewport for the keyboard (then the offset is ~0) or only the visual one.
+function catPickResetFit(){
+  var d=document.getElementById('catpick-dover');
+  if(!d)return;
+  d.style.bottom='';
+  var dr=d.querySelector('.drawer');if(dr)dr.style.maxHeight='80vh';
+  var li=document.getElementById('catpick-list');if(li)li.style.maxHeight='55vh';
+}
+function catPickFitViewport(){
+  var d=document.getElementById('catpick-dover');
+  var vv=window.visualViewport;
+  if(!d||!vv)return;
+  if(!d.classList.contains('open')){catPickResetFit();return;}
+  var kb=Math.max(0,window.innerHeight-vv.height-vv.offsetTop);
+  d.style.bottom=kb+'px';
+  var dr=d.querySelector('.drawer');
+  if(dr)dr.style.maxHeight=Math.floor(vv.height*0.92)+'px';
+  var li=document.getElementById('catpick-list');
+  // ~130px is the drawer handle + title + search box; keep a sane minimum
+  if(li)li.style.maxHeight=Math.max(120,Math.floor(vv.height*0.92)-150)+'px';
+}
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',catPickFitViewport);
+  window.visualViewport.addEventListener('scroll',catPickFitViewport);
 }
 function renderCatPickerList(list){
   var el=document.getElementById('catpick-list');if(!el)return;
