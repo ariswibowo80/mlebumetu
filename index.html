@@ -856,17 +856,18 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         <input type="text" id="tsearch" placeholder="Cari transaksi…" oninput="filterTxns()"/>
       </div>
       <!-- Filter row -->
+      <!-- Order kept consistent with Laporan tabs: Akun → Tipe → Kategori → Tahun → Bulan -->
       <div style="display:flex;gap:7px;padding:8px 16px;overflow-x:auto;">
+        <select id="fc-acct" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Akun</option></select>
         <select id="fc-type" class="fsel" onchange="setTFFromSelect()" style="flex-shrink:0;">
           <option value="all">Semua Tipe</option>
-          <option value="expense">Pengeluaran</option>
           <option value="income">Pemasukan</option>
+          <option value="expense">Pengeluaran</option>
           <option value="transfer">Transfer</option>
         </select>
-        <select id="fc-acct" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Akun</option></select>
-        <select id="fc-month" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Bulan</option></select>
-        <select id="fc-year" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Tahun</option></select>
         <select id="fc-cat" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Kategori</option></select>
+        <select id="fc-year" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Tahun</option></select>
+        <select id="fc-month" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Bulan</option></select>
         <button onclick="filterTxns()" style="flex-shrink:0;padding:6px 12px;background:var(--primary);color:white;border:none;border-radius:20px;font-family:'Manrope';font-size:11px;font-weight:700;cursor:pointer;">Filter</button>
         <button onclick="exportFilteredTxns()" title="Export transaksi yang lagi ditampilkan (sesuai filter aktif) ke CSV" style="flex-shrink:0;display:flex;align-items:center;gap:4px;padding:6px 12px;background:var(--bg2,#f2f2f2);color:var(--tx);border:1px solid var(--bd,#e2e2e2);border-radius:20px;font-family:'Manrope';font-size:11px;font-weight:700;cursor:pointer;"><span class="ms" style="font-size:14px;">file_download</span>Export</button>
       </div>
@@ -898,7 +899,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
              Akun → Tipe → Kategori (when the tab has one) → Tahun → Bulan. -->
         <div style="padding:12px 16px 0;display:flex;gap:8px;flex-wrap:wrap;">
           <select id="rc-ac" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="">Semua Akun</option></select>
-          <select id="rc-type" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="expense" selected>Pengeluaran</option><option value="income">Pemasukan</option><option value="all">Semua</option><option value="transfer">Transfer</option></select>
+          <select id="rc-type" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="all">Semua</option><option value="income">Pemasukan</option><option value="expense" selected>Pengeluaran</option><option value="transfer">Transfer</option></select>
         </div>
         <div style="padding:8px 16px 0;display:flex;gap:8px;flex-wrap:wrap;">
           <select id="rc-yr" onchange="renderCatR()" class="fi" style="flex:1;padding:8px 12px;font-size:13px;"><option value="">Semua Tahun</option></select>
