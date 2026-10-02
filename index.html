@@ -749,14 +749,17 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     </div>
     <div class="pcontent">
       <!-- Month + Acct filter bar -->
-      <div style="display:flex;gap:8px;padding:12px 16px 6px;align-items:center;">
-        <select id="ov-acct-dd" onchange="onOvAcctChange()" class="fi" style="flex-shrink:0;width:auto;max-width:130px;padding:6px 28px 6px 10px;font-size:12px;font-family:'Manrope';font-weight:700;border-radius:20px;border:1.5px solid var(--bdr);background:white;">
+      <!-- flex-wrap: the month chips get their own full-width row under the
+           account dropdown + refresh button, instead of being squeezed into
+           whatever sliver of a phone-width row was left beside them. -->
+      <div style="display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px 6px;align-items:center;">
+        <select id="ov-acct-dd" onchange="onOvAcctChange()" class="fi" style="flex-shrink:0;width:auto;max-width:200px;padding:6px 28px 6px 10px;font-size:12px;font-family:'Manrope';font-weight:700;border-radius:20px;border:1.5px solid var(--bdr);background:white;">
           <option value="">Semua Akun</option>
         </select>
         <button onclick="refreshSync()" style="flex-shrink:0;width:34px;height:34px;border-radius:50%;background:var(--card);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--txm);" title="Refresh & Sync">
           <span class="ms" id="refresh-icon" style="font-size:17px;">refresh</span>
         </button>
-        <div class="mscroll" id="mscroll" style="flex:1;display:flex;gap:7px;overflow-x:auto;"></div>
+        <div class="mscroll" id="mscroll" style="flex:1 1 100%;min-width:0;display:flex;gap:7px;overflow-x:auto;"></div>
       </div>
       <div id="dhero"></div>
       <div class="spills" id="dstats"></div>
@@ -958,7 +961,9 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         </div>
         <div style="display:flex;gap:8px;padding:8px 16px 0;">
           <select id="rm-yr" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"></select>
-          <select id="rm-mo" onchange="renderMonR()" class="fi" style="flex:1;padding:9px 12px;font-size:13px;"><option value="">Semua Bulan</option></select>
+          <!-- Multi-select: opens a checkbox drawer (see momulti-dover) so several
+               calendar months can be combined, e.g. Jan + Feb + Mar. -->
+          <div class="fi cat-picker-btn" id="rm-mo-btn" onclick="openMoPicker()" style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:pointer;padding:9px 12px;font-size:13px;"><span id="rm-mo-btn-txt" style="color:var(--txm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Semua Bulan</span><span class="ms" style="font-size:16px;color:var(--txm);flex-shrink:0;">expand_more</span></div>
         </div>
         <!-- Only shown when one account is selected: lets transfer in/out of
              that account count toward its Masuk/Keluar/Net, so the chart
@@ -1479,6 +1484,22 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
   </div>
 </div>
 
+<!-- MONTH MULTI-PICKER (Laporan Bulanan) -->
+<div class="dover" id="momulti-dover" onclick="closeDrawer('momulti-dover')">
+  <div class="drawer" onclick="event.stopPropagation()">
+    <div class="dhandle"></div>
+    <div style="padding:0 20px 12px;">
+      <div style="font-family:'Manrope';font-size:16px;font-weight:800;">Pilih Bulan</div>
+      <div style="font-size:12px;color:var(--txm);font-family:'Inter';margin-top:2px;">Bisa pilih lebih dari satu. Kosong = semua bulan.</div>
+    </div>
+    <div id="momulti-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 20px 14px;"></div>
+    <div style="display:flex;gap:8px;padding:0 20px 8px;">
+      <button type="button" onclick="resetMoPicker()" style="flex:1;padding:12px;border-radius:12px;background:var(--card2);border:1px solid var(--bdr);font-family:'Manrope';font-weight:700;font-size:13px;color:var(--txm);cursor:pointer;">Reset</button>
+      <button type="button" onclick="applyMoPicker()" style="flex:2;padding:12px;border-radius:12px;background:var(--primary);border:none;font-family:'Manrope';font-weight:700;font-size:13px;color:white;cursor:pointer;">Terapkan</button>
+    </div>
+  </div>
+</div>
+
 <!-- IMPORT CSV -->
 <div class="dover" id="catpick-dover" onclick="closeDrawer('catpick-dover')">
   <div class="drawer" onclick="event.stopPropagation()" style="max-height:80vh;">
@@ -1596,7 +1617,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         </div>
         <div style="font-size:11px;color:var(--txm);margin-bottom:10px;font-family:'Inter';">⚠️ Format tanggal: YYYY-MM-DD atau DD/MM/YYYY</div>
         <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--card2);border-radius:10px;margin-bottom:6px;cursor:pointer;">
-          <input type="checkbox" id="imp-skip-inward" checked onchange="updateImpPreview()" style="width:16px;height:16px;flex-shrink:0;accent-color:var(--primary);"/>
+          <input type="checkbox" id="imp-skip-inward" onchange="updateImpPreview()" style="width:16px;height:16px;flex-shrink:0;accent-color:var(--primary);"/>
           <span style="font-size:12px;font-family:'Inter';color:var(--tx);">Jangan import transaksi <b>Transfer (Masuk)</b></span>
         </label>
         <div style="font-size:11px;color:var(--txm);font-family:'Inter';line-height:1.5;margin-bottom:12px;">💡 Uncheck kalau kamu mengimpor kedua akun (pengirim &amp; penerima) sekaligus — sistem akan otomatis mencocokkan pasangan transfer yang tanggal &amp; jumlahnya persis sama, sisanya bisa dibereskan lewat "Perbaiki Transfer".</div>
@@ -2315,13 +2336,8 @@ function initDropdowns(){
   if(fcM&&fcM.options.length<2){
     MN.forEach(function(name,i){var mm=String(i+1).padStart(2,'0');fcM.add(new Option(name,mm));});
   }
-  // rm-mo: month filter for Laporan Bulanan, same "Semua Bulan" + 12-month
-  // pattern as fc-month above — narrows the chart to a single calendar
-  // month (e.g. every March, across whichever years rm-yr allows).
-  if(rmM&&rmM.options.length===0) rmM.add(new Option('Semua Bulan',''));
-  if(rmM&&rmM.options.length<2){
-    MN.forEach(function(name,i){var mm=String(i+1).padStart(2,'0');rmM.add(new Option(name,mm));});
-  }
+  // (Laporan Bulanan's month filter is no longer a <select>: it is a
+  // multi-select opened by openMoPicker(), state in rmSelMonths.)
 
   allAccts.forEach(function(a){
     var l=al(a);
@@ -3079,10 +3095,52 @@ function viewYearDetail(year){
   renderCatR();
 }
 
+// ── Laporan Bulanan: multi-select month filter ──────────────────
+var rmSelMonths=[];      // applied selection, 'MM' strings, sorted; [] = all
+var moPickDraft=[];      // selection being edited in the drawer
+function moBtnLabel(sel){
+  if(!sel.length)return 'Semua Bulan';
+  if(sel.length===12)return 'Semua Bulan';
+  var short=sel.map(function(m){return MN[parseInt(m,10)-1].slice(0,3);});
+  if(sel.length<=3)return short.join(', ');
+  return sel.length+' bulan dipilih';
+}
+function syncMoBtn(){
+  var txt=document.getElementById('rm-mo-btn-txt');if(!txt)return;
+  txt.textContent=moBtnLabel(rmSelMonths);
+  txt.style.color=rmSelMonths.length?'var(--tx)':'var(--txm)';
+}
+function renderMoPickerGrid(){
+  var g=document.getElementById('momulti-grid');if(!g)return;
+  g.innerHTML=MN.map(function(name,i){
+    var mm=String(i+1).padStart(2,'0');
+    var on=moPickDraft.indexOf(mm)>=0;
+    return '<div data-mm="'+mm+'" style="padding:12px 4px;text-align:center;border-radius:12px;cursor:pointer;user-select:none;font-family:Manrope;font-size:13px;font-weight:700;border:1.5px solid '+(on?'var(--primary)':'var(--bdr)')+';background:'+(on?'var(--primary-light)':'var(--card)')+';color:'+(on?'var(--primary)':'var(--txm)')+';">'+name.slice(0,3)+'</div>';
+  }).join('');
+  Array.prototype.forEach.call(g.children,function(el){
+    el.onclick=function(){
+      var mm=el.getAttribute('data-mm'),ix=moPickDraft.indexOf(mm);
+      if(ix>=0)moPickDraft.splice(ix,1);else moPickDraft.push(mm);
+      renderMoPickerGrid();
+    };
+  });
+}
+function openMoPicker(){
+  moPickDraft=rmSelMonths.slice();
+  renderMoPickerGrid();
+  openDrawer('momulti-dover');
+}
+function resetMoPicker(){moPickDraft=[];renderMoPickerGrid();}
+function applyMoPicker(){
+  rmSelMonths=moPickDraft.slice().sort();
+  syncMoBtn();
+  closeDrawer('momulti-dover');
+  renderMonR();
+}
 function renderMonR(){
   hideChartDetailTooltip();
   var yr=(document.getElementById('rm-yr')||{}).value||'';
-  var mo=(document.getElementById('rm-mo')||{}).value||'';
+  var moSel=rmSelMonths; // array of 'MM' (01-12); empty = all months
   var ac=(document.getElementById('rm-ac')||{}).value||'';
   updateReportAcctBal('rm-acct-bal',ac);
   var cat=(document.getElementById('rm-cat')||{}).value||'';
@@ -3099,10 +3157,11 @@ function renderMonR(){
   var incTf=!!(ac&&document.getElementById('rm-inc-tf')&&document.getElementById('rm-inc-tf').checked);
   var txns=ac?allTxns.filter(function(t){return t.account===ac;}):allTxns;
   if(yr)txns=txns.filter(function(t){return t.date.indexOf(yr)===0;});
-  // rm-mo filters by calendar month (01-12) independent of the year select —
-  // combine both to pin a single month+year, or use month alone to compare
-  // e.g. every March across years.
-  if(mo)txns=txns.filter(function(t){return t.date.slice(5,7)===mo;});
+  // The month filter works on calendar months (01-12), independent of the
+  // year select — combine both to pin e.g. Jan+Feb+Mar of one year, or use
+  // months alone to compare the same months across years. Several months
+  // can be selected at once.
+  if(moSel.length)txns=txns.filter(function(t){return moSel.indexOf(t.date.slice(5,7))>=0;});
   if(cat)txns=txns.filter(function(t){return t.category===cat;});
   if(type==='expense')txns=txns.filter(function(t){return t.amount<0;});
   else if(type==='income')txns=txns.filter(function(t){return t.amount>0;});
