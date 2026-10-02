@@ -853,7 +853,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <div style="display:flex;gap:7px;padding:8px 16px;overflow-x:auto;">
         <select id="ad-type" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Tipe</option><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option><option value="transfer">Transfer</option></select>
         <!-- Same order as the other pages: Tipe → Kategori → Tahun → Bulan -->
-        <select id="ad-cat" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Kategori</option></select>
+        <select id="ad-cat" onchange="filterAD()" style="display:none;"><option value="">Semua Kategori</option></select><div class="fsel" id="ad-cat-btn" onclick="openCatPicker('ad-cat')" style="display:flex;align-items:center;gap:4px;max-width:170px;"><span id="ad-cat-btn-txt" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Semua Kategori</span><span class="ms" style="font-size:14px;flex-shrink:0;">expand_more</span></div>
         <select id="ad-year" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Tahun</option></select>
         <select id="ad-month" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Bulan</option></select>
         <button class="bulk-chip" onclick="bulkToggleMode()" title="Pilih beberapa transaksi untuk ubah kategori sekaligus"><span class="ms" style="font-size:14px;">checklist</span><span class="bulk-chip-t">Pilih</span></button>
@@ -2222,7 +2222,7 @@ var dropInit=false;
 var catPickTargetId=null;
 var catPickOptions=[];
 function catPickPlaceholder(selectId){
-  return (selectId==='rm-cat'||selectId==='ry-cat')?'Semua Kategori':'Pilih kategori';
+  return (selectId==='rm-cat'||selectId==='ry-cat'||selectId==='ad-cat')?'Semua Kategori':'Pilih kategori';
 }
 function syncCatBtn(selectId){
   var sel=document.getElementById(selectId);
@@ -2343,6 +2343,7 @@ function selectCatPickerOption(val){
     syncCatBtn(catPickTargetId);
     if(catPickTargetId==='rm-cat')renderMonR();
     else if(catPickTargetId==='ry-cat')renderYrR();
+    else if(catPickTargetId==='ad-cat')filterAD();
   }
   closeDrawer('catpick-dover');
 }
@@ -2739,6 +2740,7 @@ function fillADCats(keep){
   var acats=Array.from(new Set(adAll.map(function(t){return t.category;}))).filter(Boolean).sort();
   cSel.innerHTML='<option value="">Semua Kategori</option>'+acats.map(function(c){return '<option value="'+String(c).replace(/"/g,'&quot;')+'">'+c+'</option>';}).join('');
   cSel.value=cur;if(cSel.value!==cur)cSel.value='';
+  syncCatBtn('ad-cat');
 }
 function populateADFilters(){
   var mSel=document.getElementById('ad-month'),ySel=document.getElementById('ad-year'),tSel=document.getElementById('ad-type'),cSel=document.getElementById('ad-cat');
