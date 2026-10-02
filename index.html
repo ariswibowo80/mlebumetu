@@ -990,7 +990,9 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
               <div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:3px;background:var(--red);"></div><span style="font-size:11px;color:var(--txm);font-family:'Inter';">Keluar</span></div>
             </div>
           </div>
-          <div style="position:relative;height:220px;"><canvas id="monthlyChart"></canvas></div>
+          <!-- Scrollable on narrow screens: renderMonR() widens the inner box so every
+               month gets enough room for its horizontal value labels. -->
+          <div id="monthlyChartScroll" style="overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;"><div id="monthlyChartInner" style="position:relative;height:220px;min-width:100%;"><canvas id="monthlyChart"></canvas></div></div>
           <div id="rm-avg-lbl" style="display:flex;align-items:center;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr2);font-size:12px;font-family:'Inter';color:var(--txm);"></div>
         </div>
         <!-- Summary pills -->
@@ -3139,11 +3141,11 @@ function applyMoPicker(){
 }
 // Value labels drawn above each bar of the Laporan Bulanan chart. Local
 // plugin (passed only to that chart via `plugins:[...]`), so the other
-// charts are untouched. Compact format (Rb/Jt/M, same units as the y axis)
-// so labels fit on a phone. When bars are too narrow for a horizontal
-// label (many months / two bars per month) the label is turned vertical
-// instead of overlapping its neighbour. Line datasets (Net, Rata-rata)
-// are skipped — only bars get numbers.
+// charts are untouched. Labels are always horizontal, in a compact format
+// (Rb/Jt/M, same units as the y axis). renderMonR() sizes the chart so each
+// bar is at least as wide as its label; as a safety net, a label that would
+// still overlap one already placed is nudged up a line. Line datasets
+// (Net, Rata-rata) are skipped — only bars get numbers.
 function barLabelCompact(v){
   var a=Math.abs(v);
   if(a>=1e9)return (v/1e9).toFixed(1)+'M';
@@ -3156,43 +3158,43 @@ var monBarLabels={
   afterDatasetsDraw:function(chart){
     var ctx=chart.ctx;
     ctx.save();
-    ctx.font='700 9px Manrope,Inter,sans-serif';
     ctx.textBaseline='middle';
-    // Decide orientation once for the whole chart (not per label), so a
-    // month never shows one horizontal and one vertical label side by side:
-    // vertical as soon as the narrowest bar can't fit the widest label.
-    var minBarW=Infinity,maxTw=0;
+    ctx.textAlign='center';
+    function setFont(px){ctx.font='700 '+px+'px Manrope,Inter,sans-serif';}
+
+    // Collect every label first (position, text, colour).
+    var items=[],minBarW=Infinity;
     chart.data.datasets.forEach(function(ds,di){
       var meta=chart.getDatasetMeta(di);
       if(meta.type!=='bar'||meta.hidden)return;
-      meta.data.forEach(function(bar,i){
-        if(!ds.data[i])return;
-        minBarW=Math.min(minBarW,bar.getProps(['width'],true).width);
-        maxTw=Math.max(maxTw,ctx.measureText(barLabelCompact(ds.data[i])).width);
-      });
-    });
-    var vertical=minBarW<maxTw+2;
-    chart.data.datasets.forEach(function(ds,di){
-      var meta=chart.getDatasetMeta(di);
-      if(meta.type!=='bar'||meta.hidden)return;
-      ctx.fillStyle=ds.labelColor||'#555';
       meta.data.forEach(function(bar,i){
         var v=ds.data[i];
         if(!v)return; // skip zero / empty bars
         var p=bar.getProps(['x','y','width'],true);
-        var txt=barLabelCompact(v);
-        if(!vertical){
-          ctx.textAlign='center';
-          ctx.fillText(txt,p.x,p.y-7);
-        }else{
-          ctx.save();
-          ctx.translate(p.x,p.y-5);
-          ctx.rotate(-Math.PI/2);
-          ctx.textAlign='left';
-          ctx.fillText(txt,0,0);
-          ctx.restore();
-        }
+        minBarW=Math.min(minBarW,p.width);
+        items.push({x:p.x,y:p.y-7,txt:barLabelCompact(v),color:ds.labelColor||'#555'});
       });
+    });
+    if(!items.length){ctx.restore();return;}
+
+    var px=9;setFont(px);
+    var lineH=px+2;
+
+    // Place left-to-right; push a label up while it overlaps an earlier one.
+    items.sort(function(a,b){return a.x-b.x;});
+    var placed=[];
+    items.forEach(function(it){
+      it.w=ctx.measureText(it.txt).width;
+      var guard=0,hit=true;
+      while(hit&&guard++<2){
+        hit=placed.some(function(o){
+          return Math.abs(it.x-o.x)<(it.w+o.w)/2+1 && Math.abs(it.y-o.y)<lineH;
+        });
+        if(hit)it.y-=lineH;
+      }
+      placed.push(it);
+      ctx.fillStyle=it.color;
+      ctx.fillText(it.txt,it.x,it.y);
     });
     ctx.restore();
   }
@@ -3328,6 +3330,8 @@ function renderMonR(){
     borderRadius:6,
     borderSkipped:false,
     labelColor:'#006e1c',
+    categoryPercentage:0.9,
+    barPercentage:0.94,
     order:2
   });
   if(type!=='income')monDatasets.push({
@@ -3339,6 +3343,8 @@ function renderMonR(){
     borderRadius:6,
     borderSkipped:false,
     labelColor:'#b7131a',
+    categoryPercentage:0.9,
+    barPercentage:0.94,
     order:3
   });
   if(type===''){
@@ -3383,6 +3389,29 @@ function renderMonR(){
     avgLblEl.innerHTML='<div style="width:14px;height:0;border-top:2px dashed '+avgColor+';flex-shrink:0;"></div>' +
       '<span>Rata-rata '+avgTypeLbl+' per bulan: <b style="color:'+avgColor+';font-family:Manrope;">'+(avgVal>=0?'+':'-')+'Rp '+fn(Math.abs(avgVal))+'</b></span>';
   }
+  // Give every month enough width for its horizontal value labels: each
+  // bar must be at least as wide as the widest label. On a phone that
+  // makes the chart wider than the screen, so it scrolls sideways (jumping
+  // to the newest months); on a wide screen it just fills the card.
+  (function(){
+    var inner=document.getElementById('monthlyChartInner');
+    var scroller=document.getElementById('monthlyChartScroll');
+    if(!inner||!scroller)return;
+    var mctx=canvas.getContext('2d');
+    mctx.font='700 9px Manrope,Inter,sans-serif';
+    var maxTw=0,barSeries=0;
+    monDatasets.forEach(function(d){
+      if(d.type==='line')return;
+      barSeries++;
+      d.data.forEach(function(v){if(v)maxTw=Math.max(maxTw,mctx.measureText(barLabelCompact(v)).width);});
+    });
+    var perMonth=Math.ceil((maxTw+6)*Math.max(barSeries,1)/(0.9*0.94));
+    var need=months.length*perMonth+56; // +56 for the y-axis labels
+    // Only widen when it really doesn't fit (small overflows are absorbed by
+    // the label nudging instead of making a barely-scrollable chart).
+    inner.style.width=need>(scroller.clientWidth||0)*1.12?need+'px':'';
+    setTimeout(function(){scroller.scrollLeft=scroller.scrollWidth;},0);
+  })();
   monCI=new Chart(canvas,{
     type:'bar',
     data:{
@@ -3392,9 +3421,9 @@ function renderMonR(){
     plugins:[monBarLabels],
     options:{
       responsive:true,maintainAspectRatio:false,
-      // Headroom above the tallest bar so its (possibly vertical) value
-      // label isn't clipped at the top of the canvas.
-      layout:{padding:{top:14}},
+      // Headroom above the tallest bar so its value label (which may be
+      // nudged up a line to avoid a neighbour) isn't clipped at the top.
+      layout:{padding:{top:24}},
       interaction:{mode:'index',intersect:false},
       // Detail popup is triggered by an explicit click/tap (onClick below),
       // not hover — a hover-driven tooltip closes itself the moment the
