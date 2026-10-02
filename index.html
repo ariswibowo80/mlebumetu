@@ -907,7 +907,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
           <option value="expense">Pengeluaran</option>
           <option value="transfer">Transfer</option>
         </select>
-        <select id="fc-cat" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Kategori</option></select>
+        <select id="fc-cat" onchange="filterTxns()" style="display:none;"><option value="">Semua Kategori</option></select><div class="fsel" id="fc-cat-btn" onclick="openCatPicker('fc-cat')" style="display:flex;align-items:center;gap:4px;max-width:170px;"><span id="fc-cat-btn-txt" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Semua Kategori</span><span class="ms" style="font-size:14px;flex-shrink:0;">expand_more</span></div>
         <select id="fc-year" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Tahun</option></select>
         <select id="fc-month" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Bulan</option></select>
         <button onclick="filterTxns()" style="flex-shrink:0;padding:6px 12px;background:var(--primary);color:white;border:none;border-radius:20px;font-family:'Manrope';font-size:11px;font-weight:700;cursor:pointer;">Filter</button>
@@ -2222,7 +2222,7 @@ var dropInit=false;
 var catPickTargetId=null;
 var catPickOptions=[];
 function catPickPlaceholder(selectId){
-  return (selectId==='rm-cat'||selectId==='ry-cat'||selectId==='ad-cat')?'Semua Kategori':'Pilih kategori';
+  return (selectId==='rm-cat'||selectId==='ry-cat'||selectId==='ad-cat'||selectId==='fc-cat')?'Semua Kategori':'Pilih kategori';
 }
 function syncCatBtn(selectId){
   var sel=document.getElementById(selectId);
@@ -2344,6 +2344,7 @@ function selectCatPickerOption(val){
     if(catPickTargetId==='rm-cat')renderMonR();
     else if(catPickTargetId==='ry-cat')renderYrR();
     else if(catPickTargetId==='ad-cat')filterAD();
+    else if(catPickTargetId==='fc-cat')filterTxns();
   }
   closeDrawer('catpick-dover');
 }
@@ -2403,7 +2404,7 @@ function initDropdowns(){
   if(rmY&&rmY.options.length>1)rmY.value=allYears[0]||'';
   // Sync the searchable-picker buttons for a-cat/ed-cat/rm-cat/ry-cat to
   // whatever ended up selected by default after population above.
-  ['a-cat','ed-cat','rm-cat','ry-cat'].forEach(syncCatBtn);
+  ['a-cat','ed-cat','rm-cat','ry-cat','fc-cat'].forEach(syncCatBtn);
 }
 
 // ── NAVIGATION ────────────────────────────────────
