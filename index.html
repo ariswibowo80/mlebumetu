@@ -833,8 +833,9 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <div class="sbar"><span class="ms" style="font-size:16px;color:var(--txm);">search</span><input type="text" id="ad-search" placeholder="Cari…" oninput="filterAD()"/></div>
       <div style="display:flex;gap:7px;padding:8px 16px;overflow-x:auto;">
         <select id="ad-type" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Tipe</option><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option><option value="transfer">Transfer</option></select>
-        <select id="ad-month" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Bulan</option></select>
+        <!-- Same order as the other pages: Tipe → Tahun → Bulan -->
         <select id="ad-year" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Tahun</option></select>
+        <select id="ad-month" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Bulan</option></select>
       </div>
       <div id="ad-txns"></div>
     </div>
