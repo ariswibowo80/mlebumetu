@@ -215,6 +215,23 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Inter',s
 .fchip.active{background:var(--primary-light);border-color:var(--primary);color:var(--primary);}
 .fsel{background:var(--card);border:1.5px solid var(--bdr);color:var(--txd);padding:6px 12px;border-radius:20px;font-size:12px;font-family:'Inter';outline:none;-webkit-appearance:none;cursor:pointer;flex-shrink:0;}
 .tglbl{padding:6px 16px 4px;font-size:10px;color:var(--txm);font-weight:700;text-transform:uppercase;letter-spacing:.7px;font-family:'Manrope';}
+.bulk-chip{flex-shrink:0;display:flex;align-items:center;gap:4px;padding:6px 12px;background:var(--bg2,#f2f2f2);color:var(--tx);border:1px solid var(--bd,#e2e2e2);border-radius:20px;font-family:'Manrope';font-size:11px;font-weight:700;cursor:pointer;}
+.bulk-chip.on{background:var(--primary);color:#fff;border-color:var(--primary);}
+.bchk{width:22px;height:22px;border-radius:7px;border:2px solid var(--bdr);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;font-weight:800;line-height:1;}
+.bchk.on{background:var(--primary);border-color:var(--primary);}
+.bchk.dis{opacity:.3;}
+.trow.bsel,.tl-item.bsel{background:var(--primary-light);}
+.tl-item .bchk{margin-top:9px;}
+body.bulk-on .toast{bottom:calc(var(--nh) + var(--sb) + 84px);}
+@media (min-width:768px){body.bulk-on .toast{bottom:84px;}}
+#bulk-bar{display:none;position:fixed;left:12px;right:12px;bottom:calc(var(--nh) + var(--sb) + 10px);z-index:200;background:var(--sur);border:1px solid var(--bdr);border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px 12px;align-items:center;gap:8px;}
+body.bulk-on #bulk-bar{display:flex;}
+body.bulk-on .fab-main-btn,body.bulk-on #fab-opts{display:none !important;}
+#bulk-bar .bb-n{flex:1;min-width:0;font-family:'Manrope';font-weight:700;font-size:13px;color:var(--tx);}
+#bulk-bar .bb-btn{padding:9px 12px;border-radius:12px;border:1px solid var(--bdr);background:var(--card);color:var(--tx);font-family:'Manrope';font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+#bulk-bar .bb-pri{background:var(--primary);border-color:var(--primary);color:#fff;}
+#bulk-bar .bb-pri.dis{opacity:.4;pointer-events:none;}
+@media (min-width:768px){#bulk-bar{bottom:20px;left:50%;right:auto;transform:translateX(-50%);width:min(560px,90vw);}}
 .trow{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--bdr2);}
 .rbatch{padding:8px 16px 4px;font-size:11px;color:var(--txm);font-family:'Inter';}
 .trow:last-child{border-bottom:none;}
@@ -838,6 +855,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         <!-- Same order as the other pages: Tipe → Tahun → Bulan -->
         <select id="ad-year" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Tahun</option></select>
         <select id="ad-month" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Bulan</option></select>
+        <button class="bulk-chip" onclick="bulkToggleMode()" title="Pilih beberapa transaksi untuk ubah kategori sekaligus"><span class="ms" style="font-size:14px;">checklist</span><span class="bulk-chip-t">Pilih</span></button>
       </div>
       <div id="ad-txns"></div>
     </div>
@@ -855,6 +873,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       </div>
     </div>
     <div class="pcontent">
+      <div style="display:flex;justify-content:flex-end;padding:8px 16px 0;"><button class="bulk-chip" onclick="bulkToggleMode()" title="Pilih beberapa transaksi untuk ubah kategori sekaligus"><span class="ms" style="font-size:14px;">checklist</span><span class="bulk-chip-t">Pilih</span></button></div>
       <div id="recent-list"></div>
     </div>
   </div>
@@ -892,6 +911,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         <select id="fc-month" class="fsel" onchange="filterTxns()" style="flex-shrink:0;"><option value="">Semua Bulan</option></select>
         <button onclick="filterTxns()" style="flex-shrink:0;padding:6px 12px;background:var(--primary);color:white;border:none;border-radius:20px;font-family:'Manrope';font-size:11px;font-weight:700;cursor:pointer;">Filter</button>
         <button onclick="exportFilteredTxns()" title="Export transaksi yang lagi ditampilkan (sesuai filter aktif) ke CSV" style="flex-shrink:0;display:flex;align-items:center;gap:4px;padding:6px 12px;background:var(--bg2,#f2f2f2);color:var(--tx);border:1px solid var(--bd,#e2e2e2);border-radius:20px;font-family:'Manrope';font-size:11px;font-weight:700;cursor:pointer;"><span class="ms" style="font-size:14px;">file_download</span>Export</button>
+        <button class="bulk-chip" onclick="bulkToggleMode()" title="Pilih beberapa transaksi untuk ubah kategori sekaligus"><span class="ms" style="font-size:14px;">checklist</span><span class="bulk-chip-t">Pilih</span></button>
       </div>
       <!-- Timeline list -->
       <div id="tlist" style="padding:0 0 8px;"></div>
@@ -1133,6 +1153,15 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         <div class="mlbl" style="color:var(--red);">Keluar</div>
       </div>
     </div>
+  </div>
+
+  <!-- Bulk category edit bar (shown while selecting transactions) -->
+  <div id="bulk-bar">
+    <select id="bulk-cat" style="display:none;"></select>
+    <div class="bb-n" id="bulk-n">0 dipilih</div>
+    <button class="bb-btn" id="bulk-all-btn" onclick="bulkSelectAll()">Semua</button>
+    <button class="bb-btn bb-pri dis" id="bulk-cat-btn" onclick="openBulkCat()">Ubah Kategori</button>
+    <button class="bb-btn" onclick="bulkToggleMode()" title="Selesai">✕</button>
   </div>
 
   <!-- ====== BOTTOM NAV ====== -->
@@ -2261,7 +2290,7 @@ function renderCatPickerList(list){
   // transaction category (adding/editing a transaction) — not on report
   // filter pickers (rm-cat/ry-cat), where creating a category out of thin
   // air with nothing filed under it yet wouldn't do anything useful.
-  var allowNew=(catPickTargetId==='ed-cat'||catPickTargetId==='a-cat');
+  var allowNew=(catPickTargetId==='ed-cat'||catPickTargetId==='a-cat'||catPickTargetId==='bulk-cat');
   var q=((document.getElementById('catpick-search')||{}).value||'').trim();
   if(allowNew&&q){
     var exists=catPickOptions.some(function(o){return o.text.toLowerCase()===q.toLowerCase();});
@@ -2296,6 +2325,7 @@ function addNewCategoryFromPicker(name){
     sel.appendChild(opt);
   }
   sel.value=name;
+  if(catPickTargetId==='bulk-cat'){closeDrawer('catpick-dover');setTimeout(function(){bulkApplyCat(name);},320);return;}
   syncCatBtn(catPickTargetId);
   closeDrawer('catpick-dover');
 }
@@ -2306,6 +2336,7 @@ function filterCatPicker(){
 }
 function selectCatPickerOption(val){
   var sel=document.getElementById(catPickTargetId);
+  if(catPickTargetId==='bulk-cat'){closeDrawer('catpick-dover');setTimeout(function(){bulkApplyCat(val);},320);return;}
   if(sel){
     sel.value=val;
     syncCatBtn(catPickTargetId);
@@ -2377,6 +2408,7 @@ function initDropdowns(){
 var curTab='dashboard';
 var _mlbAway=false; // true whenever the user is on any non-Dashboard tab or acct-detail
 function switchTab(t,fromPop){
+  if(bulkOn&&t!==curTab)bulkExit();
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.ntab').forEach(function(n){n.classList.remove('active');});
   if(t==='acct-detail'){
@@ -2849,7 +2881,14 @@ function grpByDate(txns){var g={};txns.forEach(function(t){if(!g[t.date])g[t.dat
 function txnRowHtml(t,showAcct){
   var bg=t.amount>=0?'var(--green-bg)':'var(--red-bg)';var fg=t.amount>=0?'var(--green)':'var(--red)';
   var sub=showAcct?al(t.account)+' · '+t.category:t.category;if(t.remarks)sub+=' · '+t.remarks;
-  return'<div class="trow" onclick="openTxnDetail('+t._id+')"><div class="tav" style="background:'+bg+';color:'+fg+';">'+ini(t.payee)+'</div><div class="tinfo"><div class="tpay">'+t.payee+'</div><div class="tcat">'+sub+'</div></div><div style="text-align:right;"><div class="tamt '+(t.amount>=0?'p':'n')+'">'+(t.amount>=0?'+':'')+fn(t.amount)+'</div><div style="font-size:10px;color:var(--txm);margin-top:2px;font-family:Inter;">'+t.date+'</div></div></div>';
+  var bk='',cls='trow',oc='openTxnDetail('+t._id+')';
+  if(bulkOn){
+    var okb=!isTf(t.category),on=okb&&bulkSel[t._id];
+    cls='trow'+(on?' bsel':'');
+    oc=okb?'bulkToggle('+t._id+')':"showToast('Transfer tidak bisa diubah kategorinya')";
+    bk='<div class="bchk'+(on?' on':'')+(okb?'':' dis')+'">'+(on?'✓':'')+'</div>';
+  }
+  return'<div class="'+cls+'" data-bid="'+t._id+'" onclick="'+oc+'">'+bk+'<div class="tav" style="background:'+bg+';color:'+fg+';">'+ini(t.payee)+'</div><div class="tinfo"><div class="tpay">'+t.payee+'</div><div class="tcat">'+sub+'</div></div><div style="text-align:right;"><div class="tamt '+(t.amount>=0?'p':'n')+'">'+(t.amount>=0?'+':'')+fn(t.amount)+'</div><div style="font-size:10px;color:var(--txm);margin-top:2px;font-family:Inter;">'+t.date+'</div></div></div>';
 }
 function renderGrp(groups,showAcct){
   return Object.entries(groups).sort(function(a,b){return b[0]>a[0]?1:-1;}).map(function(entry){
@@ -2858,6 +2897,86 @@ function renderGrp(groups,showAcct){
     return'<div class="tglbl">'+ds+' <span style="float:right;color:'+(dt>=0?'var(--green)':'var(--red)')+';">'+(dt>=0?'+':'')+fn(dt)+'</span></div>'+
       txns.map(function(t){return txnRowHtml(t,showAcct);}).join('');
   }).join('');}
+
+// ── BULK CATEGORY EDIT ────────────────────────────
+// "Pilih" mode on Transaksi / Akun detail / Terbaru: tick several
+// transactions and change their category in one go. Transfer legs are
+// excluded (their category ties the two sides together).
+var bulkOn=false,bulkSel={};
+function bulkList(){
+  if(curTab==='transactions')return tfiltd||[];
+  if(curTab==='acct-detail')return adFiltered||[];
+  if(curTab==='recent')return allTxns;
+  return [];
+}
+function bulkRerender(){
+  if(curTab==='transactions')renderTxns();
+  else if(curTab==='acct-detail')renderAD();
+  else if(curTab==='recent')renderRecent();
+}
+function bulkCount(){return Object.keys(bulkSel).length;}
+function bulkUpdateBar(){
+  var n=bulkCount();
+  var el=document.getElementById('bulk-n');if(el)el.textContent=n+' dipilih';
+  var b=document.getElementById('bulk-cat-btn');if(b)b.classList.toggle('dis',n===0);
+  var all=document.getElementById('bulk-all-btn');
+  if(all){var elig=bulkList().filter(function(t){return !isTf(t.category);}).length;all.textContent=(n>0&&n>=elig)?'Batal pilih':'Semua';}
+}
+function bulkToggleMode(){
+  bulkOn=!bulkOn;bulkSel={};
+  document.body.classList.toggle('bulk-on',bulkOn);
+  document.querySelectorAll('.bulk-chip').forEach(function(c){
+    c.classList.toggle('on',bulkOn);
+    var t=c.querySelector('.bulk-chip-t');if(t)t.textContent=bulkOn?'Selesai':'Pilih';
+  });
+  bulkUpdateBar();bulkRerender();
+}
+function bulkExit(){if(bulkOn)bulkToggleMode();}
+function bulkToggle(id){
+  if(bulkSel[id])delete bulkSel[id];else bulkSel[id]=1;
+  var on=!!bulkSel[id];
+  document.querySelectorAll('[data-bid="'+id+'"]').forEach(function(r){
+    r.classList.toggle('bsel',on);
+    var c=r.querySelector('.bchk');if(c){c.classList.toggle('on',on);c.textContent=on?'✓':'';}
+  });
+  bulkUpdateBar();
+}
+function bulkSelectAll(){
+  var elig=bulkList().filter(function(t){return !isTf(t.category);});
+  var allOn=elig.length>0&&elig.every(function(t){return bulkSel[t._id];});
+  bulkSel={};
+  if(!allOn)elig.forEach(function(t){bulkSel[t._id]=1;});
+  bulkUpdateBar();bulkRerender();
+}
+function openBulkCat(){
+  if(!bulkCount()){showToast('Pilih transaksi dulu');return;}
+  var sel=document.getElementById('bulk-cat');if(!sel)return;
+  var cats=allCats.filter(function(c){return c&&!isTf(c);});
+  sel.innerHTML=cats.map(function(c){return '<option value="'+String(c).replace(/"/g,'&quot;')+'">'+c+'</option>';}).join('');
+  sel.value='';
+  openCatPicker('bulk-cat');
+}
+function bulkApplyCat(cat){
+  cat=(cat||'').trim();if(!cat)return;
+  var items=allTxns.filter(function(t){return bulkSel[t._id]&&!isTf(t.category);});
+  if(!items.length)return;
+  var todo=items.filter(function(t){return t.category!==cat;});
+  if(!todo.length){showToast('Semua sudah berkategori '+cat);return;}
+  if(!confirm('Ubah kategori '+todo.length+' transaksi menjadi "'+cat+'"?'))return;
+  todo.forEach(function(t){
+    var rows=RAW_DATA[t.account]||[];
+    for(var i=0;i<rows.length;i++){
+      var r=rows[i];
+      if(r.date===t.date&&r.payee===t.payee&&r.amount===t.amount&&r.category===t.category){r.category=cat;break;}
+    }
+    t.category=cat;t._userAdded=true;
+  });
+  refreshCatYearLists();
+  saveData();
+  bulkExit();
+  showToast('✅ '+todo.length+' transaksi dipindah ke '+cat);
+  renderDash();if(curTab==='transactions')filterTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
+}
 
 // ── REPORTS ───────────────────────────────────────
 var catCI=null,monCI=null,yrCI=null;
@@ -6802,7 +6921,9 @@ renderTxns = function() {
       var bg  = isPos ? 'var(--green-bg)' : (isTf(t.category) ? 'var(--blue-bg)' : 'var(--red-bg)');
       var ini2 = ((t.payee||'?').split(' ').slice(0,2).map(function(w){return w[0]||'';}).join('')).toUpperCase();
       var accName = al(t.account);
-      return '<div class="tl-item" onclick="openTxnDetail('+t._id+')">' +
+      var bkOn=bulkOn,bkOk=!isTf(t.category),bkSel=bkOn&&bkOk&&bulkSel[t._id];
+      return '<div class="tl-item'+(bkSel?' bsel':'')+'" data-bid="'+t._id+'" onclick="'+(!bkOn?'openTxnDetail('+t._id+')':(bkOk?'bulkToggle('+t._id+')':"showToast('Transfer tidak bisa diubah kategorinya')"))+'">' +
+        (bkOn?'<div class="bchk'+(bkSel?' on':'')+(bkOk?'':' dis')+'">'+(bkSel?'✓':'')+'</div>':'') +
         '<div class="tl-item-ico" style="background:'+bg+';color:'+col+';">'+ini2+'</div>' +
         '<div class="tl-info">' +
           '<div class="tl-payee">'+t.payee+'</div>' +
