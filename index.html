@@ -3137,6 +3137,66 @@ function applyMoPicker(){
   closeDrawer('momulti-dover');
   renderMonR();
 }
+// Value labels drawn above each bar of the Laporan Bulanan chart. Local
+// plugin (passed only to that chart via `plugins:[...]`), so the other
+// charts are untouched. Compact format (Rb/Jt/M, same units as the y axis)
+// so labels fit on a phone. When bars are too narrow for a horizontal
+// label (many months / two bars per month) the label is turned vertical
+// instead of overlapping its neighbour. Line datasets (Net, Rata-rata)
+// are skipped — only bars get numbers.
+function barLabelCompact(v){
+  var a=Math.abs(v);
+  if(a>=1e9)return (v/1e9).toFixed(1)+'M';
+  if(a>=1e6)return (v/1e6).toFixed(1)+'Jt';
+  if(a>=1e3)return Math.round(v/1e3)+'Rb';
+  return String(Math.round(v));
+}
+var monBarLabels={
+  id:'monBarLabels',
+  afterDatasetsDraw:function(chart){
+    var ctx=chart.ctx;
+    ctx.save();
+    ctx.font='700 9px Manrope,Inter,sans-serif';
+    ctx.textBaseline='middle';
+    // Decide orientation once for the whole chart (not per label), so a
+    // month never shows one horizontal and one vertical label side by side:
+    // vertical as soon as the narrowest bar can't fit the widest label.
+    var minBarW=Infinity,maxTw=0;
+    chart.data.datasets.forEach(function(ds,di){
+      var meta=chart.getDatasetMeta(di);
+      if(meta.type!=='bar'||meta.hidden)return;
+      meta.data.forEach(function(bar,i){
+        if(!ds.data[i])return;
+        minBarW=Math.min(minBarW,bar.getProps(['width'],true).width);
+        maxTw=Math.max(maxTw,ctx.measureText(barLabelCompact(ds.data[i])).width);
+      });
+    });
+    var vertical=minBarW<maxTw+2;
+    chart.data.datasets.forEach(function(ds,di){
+      var meta=chart.getDatasetMeta(di);
+      if(meta.type!=='bar'||meta.hidden)return;
+      ctx.fillStyle=ds.labelColor||'#555';
+      meta.data.forEach(function(bar,i){
+        var v=ds.data[i];
+        if(!v)return; // skip zero / empty bars
+        var p=bar.getProps(['x','y','width'],true);
+        var txt=barLabelCompact(v);
+        if(!vertical){
+          ctx.textAlign='center';
+          ctx.fillText(txt,p.x,p.y-7);
+        }else{
+          ctx.save();
+          ctx.translate(p.x,p.y-5);
+          ctx.rotate(-Math.PI/2);
+          ctx.textAlign='left';
+          ctx.fillText(txt,0,0);
+          ctx.restore();
+        }
+      });
+    });
+    ctx.restore();
+  }
+};
 function renderMonR(){
   hideChartDetailTooltip();
   var yr=(document.getElementById('rm-yr')||{}).value||'';
@@ -3267,6 +3327,7 @@ function renderMonR(){
     borderWidth:2,
     borderRadius:6,
     borderSkipped:false,
+    labelColor:'#006e1c',
     order:2
   });
   if(type!=='income')monDatasets.push({
@@ -3277,6 +3338,7 @@ function renderMonR(){
     borderWidth:0,
     borderRadius:6,
     borderSkipped:false,
+    labelColor:'#b7131a',
     order:3
   });
   if(type===''){
@@ -3327,8 +3389,12 @@ function renderMonR(){
       labels:lb,
       datasets:monDatasets
     },
+    plugins:[monBarLabels],
     options:{
       responsive:true,maintainAspectRatio:false,
+      // Headroom above the tallest bar so its (possibly vertical) value
+      // label isn't clipped at the top of the canvas.
+      layout:{padding:{top:14}},
       interaction:{mode:'index',intersect:false},
       // Detail popup is triggered by an explicit click/tap (onClick below),
       // not hover — a hover-driven tooltip closes itself the moment the
@@ -3353,6 +3419,7 @@ function renderMonR(){
           grid:{display:false},border:{display:false}
         },
         y:{
+          grace:'18%',
           ticks:{
             color:'#bbb',font:{size:10,family:'Inter'},
             callback:function(v){
