@@ -852,7 +852,8 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <div class="sbar"><span class="ms" style="font-size:16px;color:var(--txm);">search</span><input type="text" id="ad-search" placeholder="Cari…" oninput="filterAD()"/></div>
       <div style="display:flex;gap:7px;padding:8px 16px;overflow-x:auto;">
         <select id="ad-type" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Tipe</option><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option><option value="transfer">Transfer</option></select>
-        <!-- Same order as the other pages: Tipe → Tahun → Bulan -->
+        <!-- Same order as the other pages: Tipe → Kategori → Tahun → Bulan -->
+        <select id="ad-cat" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Kategori</option></select>
         <select id="ad-year" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Tahun</option></select>
         <select id="ad-month" class="fsel" onchange="filterAD()" style="flex-shrink:0;"><option value="">Semua Bulan</option></select>
         <button class="bulk-chip" onclick="bulkToggleMode()" title="Pilih beberapa transaksi untuk ubah kategori sekaligus"><span class="ms" style="font-size:14px;">checklist</span><span class="bulk-chip-t">Pilih</span></button>
@@ -2730,8 +2731,18 @@ function renderAccts(){
 }
 
 var adKey=null,adAll=[],adShown=50,adFiltered=[];
+// Category options = only categories this account actually has. After
+// edits (e.g. bulk category change) keep the current pick if it still exists.
+function fillADCats(keep){
+  var cSel=document.getElementById('ad-cat');if(!cSel)return;
+  var cur=keep?cSel.value:'';
+  var acats=Array.from(new Set(adAll.map(function(t){return t.category;}))).filter(Boolean).sort();
+  cSel.innerHTML='<option value="">Semua Kategori</option>'+acats.map(function(c){return '<option value="'+String(c).replace(/"/g,'&quot;')+'">'+c+'</option>';}).join('');
+  cSel.value=cur;if(cSel.value!==cur)cSel.value='';
+}
 function populateADFilters(){
-  var mSel=document.getElementById('ad-month'),ySel=document.getElementById('ad-year'),tSel=document.getElementById('ad-type');
+  var mSel=document.getElementById('ad-month'),ySel=document.getElementById('ad-year'),tSel=document.getElementById('ad-type'),cSel=document.getElementById('ad-cat');
+  fillADCats(false);
   if(mSel){mSel.innerHTML='<option value="">Semua Bulan</option>'+MN.map(function(name,i){var mm=String(i+1).padStart(2,'0');return '<option value="'+mm+'">'+name+'</option>';}).join('');mSel.value='';}
   if(ySel){ySel.innerHTML='<option value="">Semua Tahun</option>'+allYears.map(function(y){return '<option value="'+y+'">'+y+'</option>';}).join('');ySel.value='';}
   if(tSel)tSel.value='';
@@ -2748,9 +2759,7 @@ function openAD(acct){
 // Jumps from an account's detail page straight to the Laporan → Bulanan
 // tab, carrying over this page's own active filters (account, year,
 // income/expense type) so the monthly chart opens already scoped to
-// whatever the person was just looking at here — category stays
-// unfiltered ('Semua Kategori') since Detail Akun has no category filter
-// of its own to carry over.
+// whatever the person was just looking at here (incl. category).
 function goToMonthlyReportFromAccount(){
   if(!adKey)return;
   var adType=(document.getElementById('ad-type')||{}).value||'';
@@ -2759,7 +2768,7 @@ function goToMonthlyReportFromAccount(){
   if(rmAc)rmAc.value=adKey;
   if(rmYr)rmYr.value=adYear;
   if(rmType)rmType.value=adType;
-  if(rmCat){rmCat.value='';syncCatBtn('rm-cat');}
+  if(rmCat){var adCat=(document.getElementById('ad-cat')||{}).value||'';rmCat.value=adCat;if(rmCat.value!==adCat)rmCat.value='';syncCatBtn('rm-cat');}
   switchTab('reports');
   setRT('monthly');
 }
@@ -2774,7 +2783,9 @@ function filterAD(){
   var mo=(document.getElementById('ad-month')||{}).value||'';
   var yr=(document.getElementById('ad-year')||{}).value||'';
   var ty=(document.getElementById('ad-type')||{}).value||'';
+  var ct=(document.getElementById('ad-cat')||{}).value||'';
   adFiltered=adAll.filter(function(t){
+    if(ct&&t.category!==ct)return false;
     if(mo&&t.date.slice(5,7)!==mo)return false;
     if(yr&&t.date.indexOf(yr)!==0)return false;
     if(ty==='expense'&&!(t.amount<0&&!isTf(t.category)))return false;
@@ -2799,6 +2810,7 @@ function refreshAD(){
   var exp=adAll.filter(function(t){return t.amount<0&&!isTf(t.category);}).reduce(function(s,t){return s+t.amount;},0);
   var statsEl=document.getElementById('ad-stats');
   if(statsEl)statsEl.innerHTML='<div class="spill"><div class="splbl">Saldo</div><div class="spval" style="color:'+(b<0?'var(--red)':'var(--green)')+';">'+idr(b)+'</div></div><div class="spill"><div class="splbl">Masuk</div><div class="spval" style="color:var(--green);">+'+fn(inc)+'</div></div><div class="spill"><div class="splbl">Keluar</div><div class="spval" style="color:var(--red);">-'+fn(Math.abs(exp))+'</div></div>';
+  fillADCats(true);
   filterAD();
 }
 
