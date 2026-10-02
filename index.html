@@ -990,6 +990,11 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
               <div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:3px;background:var(--red);"></div><span style="font-size:11px;color:var(--txm);font-family:'Inter';">Keluar</span></div>
             </div>
           </div>
+          <!-- Show/hide the numbers above the bars. Off = chart fits one screen so
+               the overall trend is easy to read; on = numbers (chart may scroll). -->
+          <div style="display:flex;justify-content:flex-end;margin:-6px 0 8px;">
+            <div id="rm-lbl-toggle" role="switch" aria-checked="true" onclick="toggleRmLabels()" style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;cursor:pointer;user-select:none;font-family:'Manrope';font-size:11px;font-weight:700;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);"><span class="ms" id="rm-lbl-ico" style="font-size:15px;">visibility</span>Angka</div>
+          </div>
           <!-- Scrollable on narrow screens: renderMonR() widens the inner box so every
                month gets enough room for its horizontal value labels. -->
           <div id="monthlyChartScroll" style="overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;"><div id="monthlyChartInner" style="position:relative;height:220px;min-width:100%;"><canvas id="monthlyChart"></canvas></div></div>
@@ -3098,6 +3103,24 @@ function viewYearDetail(year){
 }
 
 // ── Laporan Bulanan: multi-select month filter ──────────────────
+var RM_LABELS_KEY='mlebumetu_rm_bar_labels';
+var rmShowLabels=true;   // numbers above the bars in Laporan Bulanan
+try{if(localStorage.getItem(RM_LABELS_KEY)==='0')rmShowLabels=false;}catch(e){}
+function syncRmLabelsBtn(){
+  var b=document.getElementById('rm-lbl-toggle'),ic=document.getElementById('rm-lbl-ico');
+  if(!b)return;
+  b.setAttribute('aria-checked',rmShowLabels?'true':'false');
+  b.style.background=rmShowLabels?'var(--primary-light)':'var(--card2)';
+  b.style.borderColor=rmShowLabels?'var(--primary)':'var(--bdr)';
+  b.style.color=rmShowLabels?'var(--primary)':'var(--txm)';
+  if(ic)ic.textContent=rmShowLabels?'visibility':'visibility_off';
+}
+function toggleRmLabels(){
+  rmShowLabels=!rmShowLabels;
+  try{localStorage.setItem(RM_LABELS_KEY,rmShowLabels?'1':'0');}catch(e){}
+  syncRmLabelsBtn();
+  renderMonR();
+}
 var rmSelMonths=[];      // applied selection, 'MM' strings, sorted; [] = all
 var moPickDraft=[];      // selection being edited in the drawer
 function moBtnLabel(sel){
@@ -3201,6 +3224,7 @@ var monBarLabels={
 };
 function renderMonR(){
   hideChartDetailTooltip();
+  syncRmLabelsBtn();
   var yr=(document.getElementById('rm-yr')||{}).value||'';
   var moSel=rmSelMonths; // array of 'MM' (01-12); empty = all months
   var ac=(document.getElementById('rm-ac')||{}).value||'';
@@ -3397,6 +3421,7 @@ function renderMonR(){
     var inner=document.getElementById('monthlyChartInner');
     var scroller=document.getElementById('monthlyChartScroll');
     if(!inner||!scroller)return;
+    if(!rmShowLabels){inner.style.width='';scroller.scrollLeft=0;return;} // trend view: fit one screen
     var mctx=canvas.getContext('2d');
     mctx.font='700 9px Manrope,Inter,sans-serif';
     var maxTw=0,barSeries=0;
@@ -3418,12 +3443,12 @@ function renderMonR(){
       labels:lb,
       datasets:monDatasets
     },
-    plugins:[monBarLabels],
+    plugins:rmShowLabels?[monBarLabels]:[],
     options:{
       responsive:true,maintainAspectRatio:false,
       // Headroom above the tallest bar so its value label (which may be
       // nudged up a line to avoid a neighbour) isn't clipped at the top.
-      layout:{padding:{top:24}},
+      layout:{padding:{top:rmShowLabels?24:6}},
       interaction:{mode:'index',intersect:false},
       // Detail popup is triggered by an explicit click/tap (onClick below),
       // not hover — a hover-driven tooltip closes itself the moment the
@@ -3448,7 +3473,7 @@ function renderMonR(){
           grid:{display:false},border:{display:false}
         },
         y:{
-          grace:'18%',
+          grace:rmShowLabels?'18%':0,
           ticks:{
             color:'#bbb',font:{size:10,family:'Inter'},
             callback:function(v){
