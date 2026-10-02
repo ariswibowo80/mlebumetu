@@ -2595,7 +2595,10 @@ function renderDashDonut(mode){
   if(leg){
     leg.onclick=function(e){
       var item=e.target.closest('.donut-cat-item');
-      if(item){catMode='expense';openCD(item.getAttribute('data-cat'),'');}
+      // Tap a legend row → choose Detail Transaksi vs Laporan by Payee.
+      // Uses the donut's own mode (Exp/Inc) and the Overview's selected
+      // month, so the drilled-down total matches what the donut shows.
+      if(item){catMode=dashDonutMode==='income'?'income':'expense';openCatChoice(item.getAttribute('data-cat'),selMo||'');}
     };
   }
 }
@@ -2605,7 +2608,7 @@ function renderDashCats(txns){
   var total=sorted.reduce(function(s,e){return s+e[1];},0);
   var mf=selMo||'';
   var el=document.getElementById('dcats');if(!el)return;
-  el.innerHTML=sorted.map(function(e,i){var cat=e[0].replace(/'/g,"\\'"),amt=e[1];return'<div class="citem" onclick="catMode=\'expense\';openCD(\''+cat+'\',\''+mf+'\')"><div class="cdot" style="background:'+cc(i)+';"></div><div style="flex:1;min-width:0;"><div class="cname">'+e[0]+'</div><div style="margin-top:4px;height:3px;background:var(--bdr);border-radius:2px;overflow:hidden;"><div style="height:100%;width:'+(amt/sorted[0][1]*100).toFixed(1)+'%;background:'+cc(i)+';border-radius:2px;"></div></div></div><div class="cright"><div class="camt">-'+fn(amt)+'</div><div class="cpct">'+(amt/total*100).toFixed(1)+'%</div></div><svg class="cchev" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>';}).join('')||'<div class="empty"><div class="empty-ico">📭</div><div>Tidak ada data pengeluaran</div></div>';
+  el.innerHTML=sorted.map(function(e,i){var cat=e[0].replace(/'/g,"\\'"),amt=e[1];return'<div class="citem" onclick="catMode=\'expense\';openCatChoice(\''+cat+'\',\''+mf+'\')"><div class="cdot" style="background:'+cc(i)+';"></div><div style="flex:1;min-width:0;"><div class="cname">'+e[0]+'</div><div style="margin-top:4px;height:3px;background:var(--bdr);border-radius:2px;overflow:hidden;"><div style="height:100%;width:'+(amt/sorted[0][1]*100).toFixed(1)+'%;background:'+cc(i)+';border-radius:2px;"></div></div></div><div class="cright"><div class="camt">-'+fn(amt)+'</div><div class="cpct">'+(amt/total*100).toFixed(1)+'%</div></div><svg class="cchev" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>';}).join('')||'<div class="empty"><div class="empty-ico">📭</div><div>Tidak ada data pengeluaran</div></div>';
 }
 
 // ── ACCOUNTS ──────────────────────────────────────
