@@ -216,6 +216,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Inter',s
 .fsel{background:var(--card);border:1.5px solid var(--bdr);color:var(--txd);padding:6px 12px;border-radius:20px;font-size:12px;font-family:'Inter';outline:none;-webkit-appearance:none;cursor:pointer;flex-shrink:0;}
 .tglbl{padding:6px 16px 4px;font-size:10px;color:var(--txm);font-weight:700;text-transform:uppercase;letter-spacing:.7px;font-family:'Manrope';}
 .trow{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--bdr2);}
+.rbatch{padding:8px 16px 4px;font-size:11px;color:var(--txm);font-family:'Inter';}
 .trow:last-child{border-bottom:none;}
 .trow:active{background:var(--card2);}
 .tav{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;font-family:'Manrope';}
@@ -536,6 +537,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
   .alist { padding: 0 24px; }
   .tglbl { padding: 6px 24px 4px; }
   .trow { padding: 12px 24px; }
+  .rbatch { padding: 8px 24px 4px; }
 
   /* Search bar */
   .sbar { margin: 12px 24px 0; }
@@ -2780,25 +2782,81 @@ function renderTxns(){var pg=tfiltd.slice(0,tShown);var h=renderGrp(grpByDate(pg
 // shown since it spans all of them. allTxns is already kept sorted
 // newest-first (every mutation re-sorts it), so this is a plain slice.
 var recentShown=30;
+// "Terbaru" = most recently ENTERED or IMPORTED, not most recent transaction
+// date. Every creation path (manual add, transfer, CSV/PDF import, convert)
+// stamps the transaction's _tid with Date.now() as its prefix
+// ("1759396800123_abc", "..._out", "..._imp_x", "..._pdf_x", "..._conv"),
+// and _tid is saved/synced with the transaction, so that prefix is the time
+// it was added. Older transactions whose _tid has no timestamp ("tx_...",
+// "ls_...") have no recorded input time and are listed last, by date.
+function txAddedTs(t){
+  var m=/^(\d{12,14})_/.exec(String(t._tid||''));
+  if(!m)return 0;
+  var n=parseInt(m[1],10);
+  return (n>1e12&&n<4.2e12)?n:0; // plausible epoch-ms only
+}
+var RECENT_BATCH_MS=5000; // rows added within the same 5s = one batch (e.g. one CSV import)
+function recentSorted(){
+  return allTxns.map(function(t){return {t:t,ts:txAddedTs(t)};}).sort(function(a,b){
+    if(!a.ts!==!b.ts)return a.ts?-1:1;                       // known input time first
+    if(!a.ts)return b.t.date>a.t.date?1:(b.t.date<a.t.date?-1:0); // unknown: by txn date
+    var ba=Math.floor(a.ts/RECENT_BATCH_MS),bb=Math.floor(b.ts/RECENT_BATCH_MS);
+    if(ba!==bb)return bb-ba;                                 // newest batch first
+    if(a.t.date!==b.t.date)return b.t.date>a.t.date?1:-1;    // inside a batch: by txn date
+    return b.ts-a.ts;
+  });
+}
+function recentDayLabel(key){
+  var y=new Date();y.setDate(y.getDate()-1);
+  var p=key.split('-');
+  var ds=parseInt(p[2],10)+' '+MN[parseInt(p[1],10)-1]+' '+p[0];
+  return key===toISODate(new Date())?'Hari ini · '+ds:(key===toISODate(y)?'Kemarin · '+ds:ds);
+}
 function renderRecent(){
   var el=document.getElementById('recent-list');if(!el)return;
-  var pg=allTxns.slice(0,recentShown);
-  if(!pg.length){el.innerHTML='<div class="empty"><div class="empty-ico">📭</div><div>Tidak ada transaksi</div></div>';return;}
-  var h=renderGrp(grpByDate(pg),true);
-  if(recentShown<allTxns.length)h+='<div class="lmbtn" onclick="recentShown+=30;renderRecent()">Muat '+(Math.min(30,allTxns.length-recentShown))+' lagi</div>';
+  var all=recentSorted();
+  if(!all.length){el.innerHTML='<div class="empty"><div class="empty-ico">📭</div><div>Tidak ada transaksi</div></div>';return;}
+  // Counts come from the full list so they don't change with "Muat lagi".
+  var dayCount={},batchCount={},unknownCount=0;
+  all.forEach(function(it){
+    if(!it.ts){unknownCount++;return;}
+    var dk=toISODate(new Date(it.ts)),bk=Math.floor(it.ts/RECENT_BATCH_MS);
+    dayCount[dk]=(dayCount[dk]||0)+1;batchCount[bk]=(batchCount[bk]||0)+1;
+  });
+  var h='',lastDay=null,lastBatch=null,unknownShown=false;
+  all.slice(0,recentShown).forEach(function(it){
+    if(it.ts){
+      var d=new Date(it.ts),dk=toISODate(d),bk=Math.floor(it.ts/RECENT_BATCH_MS);
+      if(dk!==lastDay){
+        h+='<div class="tglbl">'+recentDayLabel(dk)+' <span style="float:right;">'+dayCount[dk]+' transaksi</span></div>';
+        lastDay=dk;lastBatch=null;
+      }
+      if(bk!==lastBatch){
+        var hhmm=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+        h+='<div class="rbatch">Ditambahkan '+hhmm+' · '+batchCount[bk]+' transaksi</div>';
+        lastBatch=bk;
+      }
+    }else if(!unknownShown){
+      h+='<div class="tglbl">Waktu input tidak tercatat <span style="float:right;">'+unknownCount+' transaksi</span></div>';
+      unknownShown=true;
+    }
+    h+=txnRowHtml(it.t,true);
+  });
+  if(recentShown<all.length)h+='<div class="lmbtn" onclick="recentShown+=30;renderRecent()">Muat '+(Math.min(30,all.length-recentShown))+' lagi</div>';
   el.innerHTML=h;
 }
 function grpByDate(txns){var g={};txns.forEach(function(t){if(!g[t.date])g[t.date]=[];g[t.date].push(t);});return g;}
+function txnRowHtml(t,showAcct){
+  var bg=t.amount>=0?'var(--green-bg)':'var(--red-bg)';var fg=t.amount>=0?'var(--green)':'var(--red)';
+  var sub=showAcct?al(t.account)+' · '+t.category:t.category;if(t.remarks)sub+=' · '+t.remarks;
+  return'<div class="trow" onclick="openTxnDetail('+t._id+')"><div class="tav" style="background:'+bg+';color:'+fg+';">'+ini(t.payee)+'</div><div class="tinfo"><div class="tpay">'+t.payee+'</div><div class="tcat">'+sub+'</div></div><div style="text-align:right;"><div class="tamt '+(t.amount>=0?'p':'n')+'">'+(t.amount>=0?'+':'')+fn(t.amount)+'</div><div style="font-size:10px;color:var(--txm);margin-top:2px;font-family:Inter;">'+t.date+'</div></div></div>';
+}
 function renderGrp(groups,showAcct){
   return Object.entries(groups).sort(function(a,b){return b[0]>a[0]?1:-1;}).map(function(entry){
     var date=entry[0],txns=entry[1];var dt=txns.reduce(function(s,t){return s+t.amount;},0);
     var p=date.split('-');var ds=p[2]+' '+MN[parseInt(p[1])-1]+' '+p[0];
     return'<div class="tglbl">'+ds+' <span style="float:right;color:'+(dt>=0?'var(--green)':'var(--red)')+';">'+(dt>=0?'+':'')+fn(dt)+'</span></div>'+
-      txns.map(function(t){
-        var bg=t.amount>=0?'var(--green-bg)':'var(--red-bg)';var fg=t.amount>=0?'var(--green)':'var(--red)';
-        var sub=showAcct?al(t.account)+' · '+t.category:t.category;if(t.remarks)sub+=' · '+t.remarks;
-        return'<div class="trow" onclick="openTxnDetail('+t._id+')"><div class="tav" style="background:'+bg+';color:'+fg+';">'+ini(t.payee)+'</div><div class="tinfo"><div class="tpay">'+t.payee+'</div><div class="tcat">'+sub+'</div></div><div style="text-align:right;"><div class="tamt '+(t.amount>=0?'p':'n')+'">'+(t.amount>=0?'+':'')+fn(t.amount)+'</div><div style="font-size:10px;color:var(--txm);margin-top:2px;font-family:Inter;">'+t.date+'</div></div></div>';
-      }).join('');
+      txns.map(function(t){return txnRowHtml(t,showAcct);}).join('');
   }).join('');}
 
 // ── REPORTS ───────────────────────────────────────
