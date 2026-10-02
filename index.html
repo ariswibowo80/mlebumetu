@@ -990,14 +990,13 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
               <div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:3px;background:var(--red);"></div><span style="font-size:11px;color:var(--txm);font-family:'Inter';">Keluar</span></div>
             </div>
           </div>
-          <!-- Show/hide the numbers above the bars. Off = chart fits one screen so
-               the overall trend is easy to read; on = numbers (chart may scroll). -->
-          <div style="display:flex;justify-content:flex-end;margin:-6px 0 8px;">
-            <div id="rm-lbl-toggle" role="switch" aria-checked="true" onclick="toggleRmLabels()" style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;cursor:pointer;user-select:none;font-family:'Manrope';font-size:11px;font-weight:700;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);"><span class="ms" id="rm-lbl-ico" style="font-size:15px;">visibility</span>Angka</div>
+          <!-- Show/hide the numbers above the bars. Off = cleaner trend view. On =
+               numbers whose font/format auto-fit the chart width (always one screen). -->
+          <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:-6px 0 8px;">
+            <span id="rm-lbl-note" style="font-size:10px;color:var(--txm);font-family:'Inter';text-align:right;line-height:1.3;"></span>
+            <div id="rm-lbl-toggle" role="switch" aria-checked="true" onclick="toggleRmLabels()" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;cursor:pointer;user-select:none;font-family:'Manrope';font-size:11px;font-weight:700;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);"><span class="ms" id="rm-lbl-ico" style="font-size:15px;">visibility</span>Angka</div>
           </div>
-          <!-- Scrollable on narrow screens: renderMonR() widens the inner box so every
-               month gets enough room for its horizontal value labels. -->
-          <div id="monthlyChartScroll" style="overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;"><div id="monthlyChartInner" style="position:relative;height:220px;min-width:100%;"><canvas id="monthlyChart"></canvas></div></div>
+          <div style="position:relative;height:220px;"><canvas id="monthlyChart"></canvas></div>
           <div id="rm-avg-lbl" style="display:flex;align-items:center;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr2);font-size:12px;font-family:'Inter';color:var(--txm);"></div>
         </div>
         <!-- Summary pills -->
@@ -3114,6 +3113,7 @@ function syncRmLabelsBtn(){
   b.style.borderColor=rmShowLabels?'var(--primary)':'var(--bdr)';
   b.style.color=rmShowLabels?'var(--primary)':'var(--txm)';
   if(ic)ic.textContent=rmShowLabels?'visibility':'visibility_off';
+  if(!rmShowLabels)setRmLabelNote('');
 }
 function toggleRmLabels(){
   rmShowLabels=!rmShowLabels;
@@ -3163,47 +3163,81 @@ function applyMoPicker(){
   renderMonR();
 }
 // Value labels drawn above each bar of the Laporan Bulanan chart. Local
-// plugin (passed only to that chart via `plugins:[...]`), so the other
-// charts are untouched. Labels are always horizontal, in a compact format
-// (Rb/Jt/M, same units as the y axis). renderMonR() sizes the chart so each
-// bar is at least as wide as its label; as a safety net, a label that would
-// still overlap one already placed is nudged up a line. Line datasets
-// (Net, Rata-rata) are skipped — only bars get numbers.
-function barLabelCompact(v){
+// plugin (passed only to that chart via `plugins:[...]`). The chart always
+// stays one screen wide, so instead of widening it the labels adapt: the
+// plugin picks the roomiest combination of number format and font size
+// that still fits the width available per month —
+//   1) "15.1Jt" @9px  2) "15.1Jt" @8px  3) "15.1" @9px  4) "15.1" @8px
+//   5) "15.1" @7px    6) "15"/"7.8" @7px
+// (formats 3-6 drop the "Jt"; a small note says "tanpa satuan = juta").
+// If even the last one doesn't fit (very many months on a narrow screen)
+// the numbers are hidden with a note, rather than drawn on top of each
+// other. Labels of the two series that still touch each other are nudged
+// up a line. Line datasets (Net, Rata-rata) are skipped.
+function barLabelCompact(v,fmt){
   var a=Math.abs(v);
+  if(fmt===3){ // everything in Jt, as short as possible
+    if(a>=1e9)return (v/1e9).toFixed(1)+'M';
+    return (v/1e6).toFixed(a<1e7?1:0);
+  }
   if(a>=1e9)return (v/1e9).toFixed(1)+'M';
-  if(a>=1e6)return (v/1e6).toFixed(1)+'Jt';
+  if(a>=1e6)return (v/1e6).toFixed(1)+(fmt===1?'Jt':'');
   if(a>=1e3)return Math.round(v/1e3)+'Rb';
   return String(Math.round(v));
+}
+var BAR_LABEL_STEPS=[[1,9],[1,8],[2,9],[2,8],[2,7],[3,7]]; // [format, font px]
+function setRmLabelNote(txt){
+  var n=document.getElementById('rm-lbl-note');
+  if(n)n.textContent=txt||'';
 }
 var monBarLabels={
   id:'monBarLabels',
   afterDatasetsDraw:function(chart){
-    var ctx=chart.ctx;
+    var ctx=chart.ctx,area=chart.chartArea;
+    if(!area)return;
+    var vals=[];
+    chart.data.datasets.forEach(function(ds,di){
+      var meta=chart.getDatasetMeta(di);
+      if(meta.type!=='bar'||meta.hidden)return;
+      ds.data.forEach(function(v,i){if(v)vals.push(v);});
+    });
+    if(!vals.length){setRmLabelNote('');return;}
+
+    // Room per month (labels of the same series are one month apart).
+    var nCat=(chart.data.labels||[]).length||1;
+    var pitch=area.width/nCat-2;
     ctx.save();
     ctx.textBaseline='middle';
     ctx.textAlign='center';
-    function setFont(px){ctx.font='700 '+px+'px Manrope,Inter,sans-serif';}
+    var chosen=null;
+    for(var k=0;k<BAR_LABEL_STEPS.length&&!chosen;k++){
+      var fmt=BAR_LABEL_STEPS[k][0],px=BAR_LABEL_STEPS[k][1];
+      ctx.font='700 '+px+'px Manrope,Inter,sans-serif';
+      var maxTw=0;
+      for(var j=0;j<vals.length;j++)maxTw=Math.max(maxTw,ctx.measureText(barLabelCompact(vals[j],fmt)).width);
+      if(maxTw<=pitch)chosen={fmt:fmt,px:px};
+    }
+    if(!chosen){
+      ctx.restore();
+      setRmLabelNote('Terlalu padat — pilih lebih sedikit bulan');
+      return;
+    }
+    setRmLabelNote(chosen.fmt>1?'Angka tanpa satuan = juta (Jt)':'');
+    ctx.font='700 '+chosen.px+'px Manrope,Inter,sans-serif';
 
-    // Collect every label first (position, text, colour).
-    var items=[],minBarW=Infinity;
+    // Collect labels, then place left-to-right nudging up on overlap.
+    var items=[];
     chart.data.datasets.forEach(function(ds,di){
       var meta=chart.getDatasetMeta(di);
       if(meta.type!=='bar'||meta.hidden)return;
       meta.data.forEach(function(bar,i){
         var v=ds.data[i];
         if(!v)return; // skip zero / empty bars
-        var p=bar.getProps(['x','y','width'],true);
-        minBarW=Math.min(minBarW,p.width);
-        items.push({x:p.x,y:p.y-7,txt:barLabelCompact(v),color:ds.labelColor||'#555'});
+        var p=bar.getProps(['x','y'],true);
+        items.push({x:p.x,y:p.y-7,txt:barLabelCompact(v,chosen.fmt),color:ds.labelColor||'#555'});
       });
     });
-    if(!items.length){ctx.restore();return;}
-
-    var px=9;setFont(px);
-    var lineH=px+2;
-
-    // Place left-to-right; push a label up while it overlaps an earlier one.
+    var lineH=chosen.px+2;
     items.sort(function(a,b){return a.x-b.x;});
     var placed=[];
     items.forEach(function(it){
@@ -3354,8 +3388,6 @@ function renderMonR(){
     borderRadius:6,
     borderSkipped:false,
     labelColor:'#006e1c',
-    categoryPercentage:0.9,
-    barPercentage:0.94,
     order:2
   });
   if(type!=='income')monDatasets.push({
@@ -3367,8 +3399,6 @@ function renderMonR(){
     borderRadius:6,
     borderSkipped:false,
     labelColor:'#b7131a',
-    categoryPercentage:0.9,
-    barPercentage:0.94,
     order:3
   });
   if(type===''){
@@ -3413,30 +3443,6 @@ function renderMonR(){
     avgLblEl.innerHTML='<div style="width:14px;height:0;border-top:2px dashed '+avgColor+';flex-shrink:0;"></div>' +
       '<span>Rata-rata '+avgTypeLbl+' per bulan: <b style="color:'+avgColor+';font-family:Manrope;">'+(avgVal>=0?'+':'-')+'Rp '+fn(Math.abs(avgVal))+'</b></span>';
   }
-  // Give every month enough width for its horizontal value labels: each
-  // bar must be at least as wide as the widest label. On a phone that
-  // makes the chart wider than the screen, so it scrolls sideways (jumping
-  // to the newest months); on a wide screen it just fills the card.
-  (function(){
-    var inner=document.getElementById('monthlyChartInner');
-    var scroller=document.getElementById('monthlyChartScroll');
-    if(!inner||!scroller)return;
-    if(!rmShowLabels){inner.style.width='';scroller.scrollLeft=0;return;} // trend view: fit one screen
-    var mctx=canvas.getContext('2d');
-    mctx.font='700 9px Manrope,Inter,sans-serif';
-    var maxTw=0,barSeries=0;
-    monDatasets.forEach(function(d){
-      if(d.type==='line')return;
-      barSeries++;
-      d.data.forEach(function(v){if(v)maxTw=Math.max(maxTw,mctx.measureText(barLabelCompact(v)).width);});
-    });
-    var perMonth=Math.ceil((maxTw+6)*Math.max(barSeries,1)/(0.9*0.94));
-    var need=months.length*perMonth+56; // +56 for the y-axis labels
-    // Only widen when it really doesn't fit (small overflows are absorbed by
-    // the label nudging instead of making a barely-scrollable chart).
-    inner.style.width=need>(scroller.clientWidth||0)*1.12?need+'px':'';
-    setTimeout(function(){scroller.scrollLeft=scroller.scrollWidth;},0);
-  })();
   monCI=new Chart(canvas,{
     type:'bar',
     data:{
