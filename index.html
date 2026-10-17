@@ -4315,7 +4315,7 @@ function autoMatchTransfers(showResult){
     refreshCatYearLists();
     saveData();
     renderDash();
-    if(curTab==='transactions')renderTxns();
+    if(curTab==='transactions')refreshTxns();
     if(curTab==='accounts')renderAccts();
     if(curTab==='recent')renderRecent();
     refreshAD();
@@ -4438,7 +4438,7 @@ function autoCreateRemainingTransferPairs(){
   if(createdAccts.length>0){dropInit=false;initDropdowns();}
   renderTransferRepairList();
   renderDash();
-  if(curTab==='transactions')renderTxns();
+  if(curTab==='transactions')refreshTxns();
   if(curTab==='accounts')renderAccts();
   if(curTab==='recent')renderRecent();
   refreshAD();
@@ -4598,7 +4598,7 @@ function submitTransferRepair(){
   }
   renderTransferRepairList(); // re-render: fixed rows disappear, remaining orphans (if any) stay
   renderDash();
-  if(curTab==='transactions')renderTxns();
+  if(curTab==='transactions')refreshTxns();
   if(curTab==='accounts')renderAccts();
   if(curTab==='recent')renderRecent();
   refreshAD();
@@ -4708,7 +4708,7 @@ function convertTransferToExpense(){
   allTxns.forEach(function(x,i){x._id=i;});
   refreshCatYearLists();
   saveData();
-  renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
+  renderDash();if(curTab==='transactions')refreshTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
   showToast('✅ Diubah jadi pengeluaran — pilih kategori yang sesuai');
   openEditMode(); // t.category is no longer a transfer category, so this now opens the normal edit form
 }
@@ -4796,7 +4796,7 @@ function confirmConvertExpenseToTransfer(){
   refreshCatYearLists();
   saveData();
   cancelEdit();
-  renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
+  renderDash();if(curTab==='transactions')refreshTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
   showToast('✅ Diubah jadi transfer ke '+destLabel);
   closeDrawer('txnd-dover');
 }
@@ -4883,7 +4883,7 @@ function saveEditTransfer(){
     : '⚠️ Transfer diperbarui — pasangan transaksi tidak ditemukan, hanya satu sisi diupdate';
   showToast(msg);
   renderDash();
-  if(curTab==='transactions')renderTxns();
+  if(curTab==='transactions')refreshTxns();
   if(curTab==='accounts')renderAccts();
   if(curTab==='recent')renderRecent();
   refreshAD();
@@ -4909,7 +4909,7 @@ function saveEdit(){
   acctBals[newAcct]=(acctBals[newAcct]||0)+newAmt;
   allTxns.sort(function(a,b){return b.date>a.date?1:-1;});allTxns.forEach(function(t,i){t._id=i;});
   refreshCatYearLists();
-  saveData();closeDrawer('txnd-dover');showToast('✅ Transaksi diperbarui');renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
+  saveData();closeDrawer('txnd-dover');showToast('✅ Transaksi diperbarui');renderDash();if(curTab==='transactions')refreshTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
 }
 function deleteTxn(){
   if(!txndCurrent)return;
@@ -4925,7 +4925,7 @@ function deleteTxn(){
   });
   allTxns.forEach(function(t,i){t._id=i;});
   refreshCatYearLists();
-  saveData();closeDrawer('txnd-dover');showToast(pair?'🗑️ Transfer dihapus':'🗑️ Transaksi dihapus');renderDash();if(curTab==='transactions')renderTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
+  saveData();closeDrawer('txnd-dover');showToast(pair?'🗑️ Transfer dihapus':'🗑️ Transaksi dihapus');renderDash();if(curTab==='transactions')refreshTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
 }
 
 // ── ADD TRANSACTION ───────────────────────────────
@@ -6480,7 +6480,7 @@ function doReset(){
   // all-accounts case (ends up empty either way).
   saveData();
 
-  renderDash();renderTxns();renderAccts();renderRecent();refreshAD();
+  renderDash();refreshTxns();renderAccts();renderRecent();refreshAD();
   ['cat','monthly','yearly'].forEach(function(x){
     var el=document.getElementById('rp-'+x);
     if(el)el.innerHTML='';
@@ -6863,7 +6863,7 @@ function refreshSync() {
   setTimeout(function(){
     if (icon) icon.style.animation = '';
     renderDash();
-    if (curTab === 'transactions') renderTxns();
+    if (curTab === 'transactions') refreshTxns();
     if (curTab === 'accounts') renderAccts();
     if (curTab === 'recent') renderRecent();
     if (curTab === 'reports') renderCatR();
@@ -6897,6 +6897,18 @@ function setTFFromSelect() {
   var sel = document.getElementById('fc-type');
   tfMode = sel ? sel.value : 'all';
   filterTxns();
+}
+
+// Re-applies the active Transaksi filters against the live allTxns after an
+// add/edit/delete. renderTxns() alone only re-slices tfiltd, a snapshot taken
+// at the last filter run, so deleted rows stayed and edited rows kept their
+// old values/position until the filter was re-applied. Keeps the "Muat lagi"
+// page size instead of resetting to 50.
+function refreshTxns(){
+  var keep=tShown;
+  filterTxns();
+  tShown=keep;
+  renderTxns();
 }
 
 // ── OVERRIDE filterTxns to use fc-type select ─────
