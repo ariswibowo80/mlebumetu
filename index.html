@@ -220,7 +220,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Inter',s
 .bchk{width:22px;height:22px;border-radius:7px;border:2px solid var(--bdr);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;font-weight:800;line-height:1;}
 .bchk.on{background:var(--primary);border-color:var(--primary);}
 .bchk.dis{opacity:.3;}
-.trow.bsel,.tl-item.bsel{background:var(--primary-light);}
+.trow.bsel,.cdtxn.bsel,.tl-item.bsel{background:var(--primary-light);}
 .tl-item .bchk{margin-top:9px;}
 body.bulk-on .toast{bottom:calc(var(--nh) + var(--sb) + 84px);}
 @media (min-width:768px){body.bulk-on .toast{bottom:84px;}}
@@ -1434,6 +1434,12 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <div style="padding:0 20px 14px;display:flex;gap:20px;">
       <div><div style="font-size:11px;color:var(--txm);font-family:'Inter';">Total</div><div id="cd-total" style="font-family:'Manrope';font-size:20px;font-weight:800;color:var(--red);margin-top:4px;"></div></div>
       <div><div style="font-size:11px;color:var(--txm);font-family:'Inter';">Jumlah</div><div id="cd-count" style="font-family:'Manrope';font-size:20px;font-weight:800;margin-top:4px;"></div></div>
+    </div>
+    <div id="cd-bulkbar" style="padding:0 20px 10px;display:flex;align-items:center;gap:8px;">
+      <button class="bulk-chip" id="cd-bulk-chip" onclick="cdBulkToggle()" title="Pilih beberapa transaksi untuk ubah kategori sekaligus"><span class="ms" style="font-size:14px;">checklist</span><span class="bulk-chip-t">Pilih</span></button>
+      <div id="cd-bulk-n" style="flex:1;min-width:0;font-family:'Manrope';font-size:12px;font-weight:700;display:none;">0 dipilih</div>
+      <button class="bb-btn" id="cd-bulk-all" onclick="cdBulkAll()" style="display:none;padding:7px 12px;border-radius:12px;border:1px solid var(--bdr);background:var(--card);color:var(--tx);font-family:'Manrope';font-size:12px;font-weight:700;cursor:pointer;">Semua</button>
+      <button id="cd-bulk-cat" onclick="cdBulkCat()" style="display:none;padding:7px 12px;border-radius:12px;border:1px solid var(--primary);background:var(--primary);color:#fff;font-family:'Manrope';font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">Ubah Kategori</button>
     </div>
     <div id="cd-list" style="max-height:55vh;overflow-y:auto;"></div>
   </div>
@@ -3010,7 +3016,7 @@ function bulkApplyCat(cat){
   saveData();
   bulkExit();
   showToast('✅ '+todo.length+' transaksi dipindah ke '+cat);
-  renderDash();if(curTab==='transactions')filterTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();
+  renderDash();if(curTab==='transactions')filterTxns();if(curTab==='accounts')renderAccts();if(curTab==='recent')renderRecent();refreshAD();refreshActiveReport();cdAfterBulk();
 }
 
 // ── REPORTS ───────────────────────────────────────
@@ -4132,7 +4138,19 @@ function openPayeeReport(cat,mo,acctOverride){
   openDrawer('payee-dover');
 }
 
+var cdCtx=null,cdTxns=[],cdBulkOn=false,cdSel={};
 function openCD(cat,mo,acctOverride,payeeFilter){
+  cdCtx={cat:cat,mo:mo,acct:acctOverride,payee:payeeFilter};
+  cdBulkOn=false;cdSel={};
+  renderCD();
+  openDrawer('cd-dover');
+}
+// Rebuilds the category-detail list from the live allTxns using the
+// filters openCD was called with (also used after a bulk category change,
+// when the moved transactions must drop out of this category's list).
+function renderCD(){
+  if(!cdCtx)return;
+  var cat=cdCtx.cat,mo=cdCtx.mo,acctOverride=cdCtx.acct,payeeFilter=cdCtx.payee;
   var acctFilter=acctOverride!==undefined?acctOverride:selAcct;
   var isIncome=catMode==='income';
   var txns=allTxns.filter(function(t){return t.category===cat&&(isIncome?t.amount>0:t.amount<0);});
@@ -4140,6 +4158,7 @@ function openCD(cat,mo,acctOverride,payeeFilter){
   else if(mo)txns=txns.filter(function(t){return t.date.indexOf(mo)===0;});
   if(acctFilter)txns=txns.filter(function(t){return t.account===acctFilter;});
   if(payeeFilter)txns=txns.filter(function(t){return t.payee===payeeFilter;});
+  cdTxns=txns;
   var tot=txns.reduce(function(s,t){return s+t.amount;},0);
   var sign=isIncome?'+':'-';
   var themeVar=isIncome?'var(--green)':'var(--red)';
@@ -4148,19 +4167,26 @@ function openCD(cat,mo,acctOverride,payeeFilter){
   document.getElementById('cd-count').textContent=txns.length;
   var cdList=document.getElementById('cd-list');
   cdList.innerHTML=txns.map(function(t){
-    return '<div class="cdtxn" style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--bdr2);">' +
+    var ok=!isTf(t.category),on=cdBulkOn&&ok&&cdSel[t._id];
+    return '<div class="cdtxn'+(on?' bsel':'')+'" data-bid="'+t._id+'" style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--bdr2);">' +
+      (cdBulkOn?'<div class="bchk'+(on?' on':'')+(ok?'':' dis')+'" style="display:flex;">'+(on?'✓':'')+'</div>':'') +
       '<div style="flex:1;min-width:0;cursor:pointer;" data-tid="'+t._id+'" class="cd-txn-row">' +
         '<div style="font-family:Manrope;font-size:14px;font-weight:600;">'+t.payee+'</div>' +
         '<div style="font-size:12px;color:var(--txm);margin-top:2px;font-family:Inter;">'+al(t.account)+' · '+t.date+'</div>' +
       '</div>' +
       '<div style="font-family:Manrope;font-weight:700;color:'+themeVar+';flex-shrink:0;">'+sign+fn(Math.abs(t.amount))+'</div>' +
-      '<button data-etid="'+t._id+'" class="cd-edit-btn" style="flex-shrink:0;width:32px;height:32px;border-radius:9px;background:var(--blue-bg);border:none;color:var(--blue);cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="ms" style="font-size:16px;">edit</span></button>' +
+      (cdBulkOn?'':'<button data-etid="'+t._id+'" class="cd-edit-btn" style="flex-shrink:0;width:32px;height:32px;border-radius:9px;background:var(--blue-bg);border:none;color:var(--blue);cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="ms" style="font-size:16px;">edit</span></button>') +
     '</div>';
   }).join('')||'<div class="empty">Tidak ada data</div>';
   // Event delegation
   cdList.onclick = function(e) {
     var editBtn = e.target.closest('.cd-edit-btn');
     var row     = e.target.closest('.cd-txn-row');
+    if (cdBulkOn) {
+      var item = e.target.closest('.cdtxn');
+      if (item) cdBulkToggle1(parseInt(item.getAttribute('data-bid')));
+      return;
+    }
     if (editBtn) {
       var tid = parseInt(editBtn.getAttribute('data-etid'));
       closeDrawer('cd-dover');
@@ -4171,7 +4197,50 @@ function openCD(cat,mo,acctOverride,payeeFilter){
       setTimeout(function(){ openTxnDetail(tid); }, 250);
     }
   };
-  openDrawer('cd-dover');
+  cdBulkUpdateBar();
+}
+// "Pilih" mode inside the category-detail drawer (reached via Laporan by
+// Payee): tick transactions and change their category in one go. Selection
+// is handed to the shared bulkApplyCat() so the confirm/apply/save logic
+// stays in one place.
+function cdBulkUpdateBar(){
+  var n=Object.keys(cdSel).length;
+  var chip=document.getElementById('cd-bulk-chip');
+  if(chip){chip.classList.toggle('on',cdBulkOn);var t=chip.querySelector('.bulk-chip-t');if(t)t.textContent=cdBulkOn?'Selesai':'Pilih';}
+  var nEl=document.getElementById('cd-bulk-n');if(nEl){nEl.style.display=cdBulkOn?'block':'none';nEl.textContent=n+' dipilih';}
+  var all=document.getElementById('cd-bulk-all');
+  if(all){all.style.display=cdBulkOn?'block':'none';var elig=cdTxns.filter(function(t){return !isTf(t.category);}).length;all.textContent=(n>0&&n>=elig)?'Batal pilih':'Semua';}
+  var cb=document.getElementById('cd-bulk-cat');if(cb){cb.style.display=cdBulkOn?'block':'none';cb.style.opacity=n?1:.4;}
+}
+function cdBulkToggle(){cdBulkOn=!cdBulkOn;cdSel={};renderCD();}
+function cdBulkToggle1(id){
+  var t=allTxns.find(function(x){return x._id===id;});
+  if(!t)return;
+  if(isTf(t.category)){showToast('Transfer tidak bisa diubah kategorinya');return;}
+  if(cdSel[id])delete cdSel[id];else cdSel[id]=1;
+  var on=!!cdSel[id];
+  var r=document.querySelector('#cd-list [data-bid="'+id+'"]');
+  if(r){r.classList.toggle('bsel',on);var c=r.querySelector('.bchk');if(c){c.classList.toggle('on',on);c.textContent=on?'✓':'';}}
+  cdBulkUpdateBar();
+}
+function cdBulkAll(){
+  var elig=cdTxns.filter(function(t){return !isTf(t.category);});
+  var allOn=elig.length>0&&elig.every(function(t){return cdSel[t._id];});
+  cdSel={};
+  if(!allOn)elig.forEach(function(t){cdSel[t._id]=1;});
+  renderCD();
+}
+function cdBulkCat(){
+  if(!Object.keys(cdSel).length){showToast('Pilih transaksi dulu');return;}
+  bulkSel=Object.assign({},cdSel);
+  openBulkCat();
+}
+// Called by bulkApplyCat() after a successful change.
+function cdAfterBulk(){
+  bulkSel={};
+  if(!cdCtx||!document.getElementById('cd-dover').classList.contains('open'))return;
+  cdBulkOn=false;cdSel={};
+  renderCD();
 }
 
 // ── TXN DETAIL & EDIT ─────────────────────────────
