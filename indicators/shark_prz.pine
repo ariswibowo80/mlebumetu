@@ -1,0 +1,220 @@
+//@version=5
+indicator("Shark Harmonic + PRZ", shorttitle="Shark PRZ", overlay=true, max_bars_back=500, max_lines_count=100, max_labels_count=100, max_boxes_count=20)
+
+// ============================ INPUT ============================
+pivLen  = input.int(5, "Panjang Pivot (ZigZag)", minval=2, group="Pola")
+tolPct  = input.float(10.0, "Toleransi rasio (%)", minval=0.0, group="Pola") / 100.0
+showBull = input.bool(true, "Tampilkan Shark BUY (bullish)", group="Pola")
+showBear = input.bool(true, "Tampilkan Shark SELL (bearish)", group="Pola")
+
+abMin  = input.float(0.446, "AB / XA  min", step=0.001, group="Rasio Shark")
+abMax  = input.float(0.618, "AB / XA  max", step=0.001, group="Rasio Shark")
+bcMin  = input.float(1.130, "BC / AB  min", step=0.001, group="Rasio Shark")
+bcMax  = input.float(1.618, "BC / AB  max", step=0.001, group="Rasio Shark")
+przMin = input.float(0.886, "PRZ: D retrace XC  min", step=0.001, group="Rasio Shark")
+przMax = input.float(1.130, "PRZ: D retrace XC  max", step=0.001, group="Rasio Shark")
+invR   = input.float(1.272, "Invalid: D retrace XC", step=0.001, group="Rasio Shark")
+
+showTgt   = input.bool(true, "Tampilkan target", group="Target (fib dari D ke C)")
+tgt1      = input.float(0.382, "Target 1", step=0.001, group="Target (fib dari D ke C)")
+tgt2      = input.float(0.618, "Target 2", step=0.001, group="Target (fib dari D ke C)")
+tgt3      = input.float(0.886, "Target 3", step=0.001, group="Target (fib dari D ke C)")
+showRatio = input.bool(true, "Tampilkan label rasio", group="Tampilan")
+
+cLine = input.color(color.new(color.gray, 20), "Garis pola", group="Tampilan")
+cPrz  = input.color(color.new(color.purple, 75), "Kotak PRZ", group="Tampilan")
+cTgt  = input.color(color.new(color.green, 0), "Target", group="Tampilan")
+cInv  = input.color(color.new(color.red, 0), "Invalid", group="Tampilan")
+
+// ============================ PIVOT / ZIGZAG ============================
+var float[] pPrice = array.new_float()
+var int[]   pBar   = array.new_int()
+var int[]   pDir   = array.new_int()
+
+f_addPivot(float price, int bar, int dir) =>
+    sz = array.size(pPrice)
+    if sz > 0 and array.get(pDir, sz - 1) == dir
+        last = array.get(pPrice, sz - 1)
+        if (dir == 1 and price > last) or (dir == -1 and price < last)
+            array.set(pPrice, sz - 1, price)
+            array.set(pBar, sz - 1, bar)
+    else
+        array.push(pPrice, price)
+        array.push(pBar, bar)
+        array.push(pDir, dir)
+        if array.size(pPrice) > 8
+            array.shift(pPrice)
+            array.shift(pBar)
+            array.shift(pDir)
+
+ph = ta.pivothigh(high, pivLen, pivLen)
+pl = ta.pivotlow(low, pivLen, pivLen)
+if not na(pl)
+    f_addPivot(pl, bar_index - pivLen, -1)
+if not na(ph)
+    f_addPivot(ph, bar_index - pivLen, 1)
+
+// ============================ DETEKSI SHARK ============================
+f_in(float r, float lo, float hi) =>
+    r >= lo * (1.0 - tolPct) and r <= hi * (1.0 + tolPct)
+
+f_dist(float r, float lo, float hi) =>
+    r < lo ? lo - r : r > hi ? r - hi : 0.0
+
+f_score(float r, float lo, float hi) =>
+    half = (hi - lo) / 2.0
+    f_in(r, lo, hi) ? math.max(0.0, 1.0 - 0.5 * math.abs(r - (lo + hi) / 2.0) / half) : 0.0
+
+// s = 1  -> bullish (X low, A high, B low, C high, D low)
+// s = -1 -> bearish (cermin)
+f_eval(int s) =>
+    sz = array.size(pPrice)
+    bool ok = false
+    bool reached = false
+    int xi = na
+    int ai = na
+    int bi = na
+    int ci = na
+    int dB = na
+    float x = na
+    float a = na
+    float b = na
+    float c = na
+    float dP = na
+    float score = na
+    float err = na
+    if sz >= 4 and array.get(pDir, sz - 1) == s
+        xi := array.get(pBar, sz - 4)
+        ai := array.get(pBar, sz - 3)
+        bi := array.get(pBar, sz - 2)
+        ci := array.get(pBar, sz - 1)
+        x := array.get(pPrice, sz - 4)
+        a := array.get(pPrice, sz - 3)
+        b := array.get(pPrice, sz - 2)
+        c := array.get(pPrice, sz - 1)
+        tx = s * x
+        ta_ = s * a
+        tb = s * b
+        tc = s * c
+        xa = ta_ - tx
+        ab = ta_ - tb
+        bc = tc - tb
+        xc = tc - tx
+        lb = bar_index - ci
+        if xa > 0 and ab > 0 and bc > 0 and tc > ta_ and lb <= 400
+            r1 = ab / xa
+            r2 = bc / ab
+            float tD = 1e10
+            for i = 0 to lb
+                tv = s * (s == 1 ? low[i] : high[i])
+                if tv < tD
+                    tD := tv
+                    dB := bar_index - i
+            dP := s * tD
+            r3 = (tc - tD) / xc
+            if f_in(r1, abMin, abMax) and f_in(r2, bcMin, bcMax) and r3 <= invR
+                ok := true
+                reached := r3 >= przMin
+                err := f_dist(r1, abMin, abMax) + f_dist(r2, bcMin, bcMax) + f_dist(r3, przMin, przMax)
+                sc = (f_score(r1, abMin, abMax) + f_score(r2, bcMin, bcMax)) / 2.0
+                if reached
+                    sc := (f_score(r1, abMin, abMax) + f_score(r2, bcMin, bcMax) + f_score(r3, przMin, przMax)) / 3.0
+                score := sc * 100.0
+    [ok, reached, xi, ai, bi, ci, x, a, b, c, dB, dP, score, err]
+
+[okB, rB, xiB, aiB, biB, ciB, xB, aB, bB, cB, dBB, dPB, scB, erB] = f_eval(1)
+[okS, rS, xiS, aiS, biS, ciS, xS, aS, bS, cS, dBS, dPS, scS, erS] = f_eval(-1)
+okB := okB and showBull
+okS := okS and showBear
+
+// ============================ GAMBAR ============================
+var line[]  lns = array.new_line()
+var label[] lbs = array.new_label()
+var box[]   bxs = array.new_box()
+
+f_clear() =>
+    for l in lns
+        line.delete(l)
+    for lb_ in lbs
+        label.delete(lb_)
+    for bx in bxs
+        box.delete(bx)
+    array.clear(lns)
+    array.clear(lbs)
+    array.clear(bxs)
+
+f_line(int x1, float y1, int x2, float y2, color col, string sty, int w) =>
+    array.push(lns, line.new(x1, y1, x2, y2, color=col, style=sty, width=w))
+
+f_txt(int x, float y, string t, color col) =>
+    array.push(lbs, label.new(x, y, t, style=label.style_none, textcolor=col, size=size.small))
+
+f_level(float y, string t, color col, string sty) =>
+    array.push(lns, line.new(bar_index, y, bar_index + 12, y, color=col, style=sty, extend=extend.left))
+    array.push(lbs, label.new(bar_index + 12, y, t + "  " + str.tostring(y, format.mintick), style=label.style_label_left, color=col, textcolor=color.white, size=size.small))
+
+f_draw(int s, bool ok, bool reached, int xi, int ai, int bi, int ci, float x, float a, float b, float c, int dB, float dP, float score, float err) =>
+    if ok
+        tag = s == 1 ? "BUY" : "SELL"
+        tfx = timeframe.isweekly ? "W" : timeframe.isdaily ? "D" : timeframe.period
+        xcLen = math.abs(c - x)
+        przNear = c - s * przMin * xcLen
+        przFar  = c - s * przMax * xcLen
+        invalid = c - s * invR * xcLen
+        trigger = c - s * math.abs(a - b)
+
+        // kaki pola
+        f_line(xi, x, ai, a, cLine, line.style_solid, 1)
+        f_line(ai, a, bi, b, cLine, line.style_solid, 1)
+        f_line(bi, b, ci, c, cLine, line.style_solid, 1)
+        f_line(xi, x, bi, b, cLine, line.style_dashed, 1)
+        f_line(ai, a, ci, c, cLine, line.style_dashed, 1)
+        if reached
+            f_line(ci, c, dB, dP, cLine, line.style_solid, 1)
+            f_line(bi, b, dB, dP, cLine, line.style_dashed, 1)
+            f_line(xi, x, dB, dP, cLine, line.style_dashed, 1)
+
+        // kotak PRZ
+        array.push(bxs, box.new(bar_index - 8, math.max(przNear, przFar), bar_index + 8, math.min(przNear, przFar), border_color=na, bgcolor=cPrz, text="PRZ SHARK " + tag + " (" + tfx + ")", text_color=color.new(color.purple, 20), text_size=size.small))
+
+        // label judul + probabilitas
+        array.push(lbs, label.new(ci, c, "SHARK  ERR " + str.tostring(err, "0.0000") + "\nProbabilitas " + str.tostring(score, "0") + "%", style=s == 1 ? label.style_label_down : label.style_label_up, color=color.new(color.gray, 100), textcolor=color.white, size=size.small))
+
+        // rasio
+        if showRatio
+            f_txt(bi, b, str.tostring(math.abs(a - b) / math.abs(a - x), "0.000"), color.white)
+            f_txt(ci, c, str.tostring(math.abs(c - b) / math.abs(a - b), "0.000"), color.white)
+            if reached
+                f_txt(dB, dP, str.tostring(math.abs(c - dP) / math.abs(c - b), "0.000"), color.white)
+                f_txt(int(math.avg(xi, dB)), math.avg(x, dP), str.tostring(math.abs(c - dP) / xcLen, "0.000"), color.white)
+
+        // trigger AB=CD
+        f_level(trigger, "TRIGGER AB=CD", color.new(color.purple, 20), line.style_dotted)
+
+        // invalid
+        f_level(invalid, "Invalid", cInv, line.style_solid)
+
+        // target
+        if showTgt
+            dRef = reached ? dP : przNear
+            f_level(dRef + tgt1 * (c - dRef), "Target PRZ 1", cTgt, line.style_dotted)
+            f_level(dRef + tgt2 * (c - dRef), "Target PRZ 2", cTgt, line.style_dotted)
+            f_level(dRef + tgt3 * (c - dRef), "Target PRZ 3", cTgt, line.style_dotted)
+            f_level(c, "Target PRZ 4", cTgt, line.style_dotted)
+
+if barstate.islast
+    f_clear()
+    f_draw(1, okB, rB, xiB, aiB, biB, ciB, xB, aB, bB, cB, dBB, dPB, scB, erB)
+    f_draw(-1, okS, rS, xiS, aiS, biS, ciS, xS, aS, bS, cS, dBS, dPS, scS, erS)
+
+// ============================ SINYAL & ALERT ============================
+sigBuy  = okB and rB and (bar_index - dBB) <= 2 and close > open
+sigSell = okS and rS and (bar_index - dBS) <= 2 and close < open
+newBuy  = sigBuy and not sigBuy[1]
+newSell = sigSell and not sigSell[1]
+
+plotshape(newBuy, "Shark BUY", shape.triangleup, location.belowbar, color.green, size=size.small, text="BUY")
+plotshape(newSell, "Shark SELL", shape.triangledown, location.abovebar, color.red, size=size.small, text="SELL")
+
+alertcondition(newBuy, "Shark BUY", "Shark BUY: harga masuk PRZ dan candle bullish")
+alertcondition(newSell, "Shark SELL", "Shark SELL: harga masuk PRZ dan candle bearish")
