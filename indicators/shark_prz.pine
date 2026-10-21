@@ -13,7 +13,7 @@ bcMin  = input.float(1.130, "BC / AB  min", step=0.001, group="Rasio Shark")
 bcMax  = input.float(1.618, "BC / AB  max", step=0.001, group="Rasio Shark")
 przMin = input.float(0.786, "PRZ: D retrace XC  min", step=0.001, group="Rasio Shark")
 przMax = input.float(0.886, "PRZ: D retrace XC  max", step=0.001, group="Rasio Shark")
-invR   = input.float(1.272, "Invalid: D retrace XC", step=0.001, group="Rasio Shark")
+invR   = input.float(1.000, "Invalid: D retrace XC", step=0.001, group="Rasio Shark")
 
 showTgt   = input.bool(true, "Tampilkan target", group="Target (fib dari D ke C)")
 tgt1      = input.float(0.382, "Target 1", step=0.001, group="Target (fib dari D ke C)")
