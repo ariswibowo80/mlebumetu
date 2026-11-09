@@ -134,6 +134,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Inter',s
 .sd-btn:active{transform:scale(.9);}
 #fab-backdrop{position:fixed;inset:0;z-index:199;display:none;}
 
+/* ===== BACK TO TOP (Laporan) ===== */
+/* Same fixed-not-absolute reasoning as the FAB above, mirrored on the
+   opposite side so the two floating buttons never overlap. */
+.btt-btn{position:fixed;bottom:calc(var(--nh) + var(--sb) + 14px);left:16px;width:44px;height:44px;border-radius:50%;background:var(--card);border:1px solid var(--bdr);box-shadow:0 6px 20px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:150;color:var(--primary);opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .2s,transform .2s;}
+.btt-btn.show{opacity:1;pointer-events:auto;transform:translateY(0);}
+.btt-btn:active{transform:scale(.9);}
+
 /* ===== HERO CARD ===== */
 .hero-card{margin:14px 16px 0;background:linear-gradient(135deg,#c0191f 0%,#8a0e12 100%);border-radius:20px;padding:22px 20px;color:white;position:relative;overflow:hidden;}
 .hero-card::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:rgba(255,255,255,.07);border-radius:50%;}
@@ -512,6 +519,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
   .phdr { display: none !important; }
   #fab-opts { display: none !important; }
   #fab-backdrop { display: none !important; }
+  .btt-btn { display: none !important; }
   #sidemenu { display: none !important; }
   #sidemenu-overlay { display: none !important; }
 
@@ -1058,6 +1066,10 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         <div id="ry-tbl" style="padding:0 16px 16px;"></div>
       </div>
     </div>
+    <!-- Appears once the Laporan tab's own content has scrolled down a bit;
+         jumps straight back to the top of whichever sub-tab (Kategori/
+         Bulanan/Tahunan) is active. -->
+    <button type="button" class="btt-btn" id="reports-btt" onclick="scrollReportsTop()" title="Kembali ke atas" aria-label="Kembali ke atas"><span class="ms">arrow_upward</span></button>
   </div>
 
   <!-- ====== MORE ====== -->
@@ -5092,6 +5104,23 @@ function closeFab(){
   var x=document.getElementById('fab-icon-x');
   if(plus)plus.style.display='block';
   if(x)x.style.display='none';
+}
+
+// ── BACK TO TOP (Laporan) ──────────────────────────
+// Toggles the floating button once the Laporan tab's own scroll container
+// (not the window — .pcontent scrolls internally, see its CSS) passes a
+// threshold, and jumps it back to the top of whichever sub-tab is active.
+(function initReportsBackToTop(){
+  var box=document.querySelector('#pg-reports .pcontent');
+  var btn=document.getElementById('reports-btt');
+  if(!box||!btn)return;
+  box.addEventListener('scroll',function(){
+    btn.classList.toggle('show',box.scrollTop>280);
+  });
+})();
+function scrollReportsTop(){
+  var box=document.querySelector('#pg-reports .pcontent');
+  if(box)box.scrollTo({top:0,behavior:'smooth'});
 }
 
 // ── SIDE MENU ─────────────────────────────────────
