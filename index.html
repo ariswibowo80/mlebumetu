@@ -2551,6 +2551,10 @@ function switchTab(t,fromPop){
   if(t==='reports')renderCatR();
   if(t==='more')updateUserUI();
   if(t==='ai')aiInit();
+  // The add-transaction FAB has no place on the AI chat page — it would
+  // float on top of the chat input's send button in the same corner.
+  var fo=document.getElementById('fab-opts');
+  if(fo){ if(t==='ai'){ if(fabOpen)closeFab(); fo.style.display='none'; } else { fo.style.display=''; } }
 }
 function backToAccts(fromPop){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
