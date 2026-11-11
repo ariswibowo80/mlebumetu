@@ -692,15 +692,15 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <div class="dsb-ico" style="background:var(--green-bg);"><span class="ms" style="color:var(--green);">bar_chart</span></div>
       Laporan
     </div>
+    <div class="dsb-item" id="dsb-ai" onclick="switchTab('ai')">
+      <div class="dsb-ico" style="background:linear-gradient(135deg,#e8f0fe,#e6f4ea);"><span class="ms" style="color:#4285f4;">smart_toy</span></div>
+      Tanya AI ✨
+    </div>
     <div class="dsb-item" id="dsb-more" onclick="switchTab('more')">
       <div class="dsb-ico" style="background:var(--card2);"><span class="ms" style="color:var(--txm);">more_horiz</span></div>
       Lainnya
     </div>
     <div class="dsb-section">Aksi Cepat</div>
-    <div class="dsb-item" onclick="openAiChat()">
-      <div class="dsb-ico" style="background:linear-gradient(135deg,#e8f0fe,#e6f4ea);"><span class="ms" style="color:#4285f4;">smart_toy</span></div>
-      Tanya AI ✨
-    </div>
     <div class="dsb-item" onclick="openImportDrawer()">
       <div class="dsb-ico" style="background:var(--green-bg);"><span class="ms" style="color:var(--green);">upload_file</span></div>
       Import CSV
@@ -1089,6 +1089,48 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <button type="button" class="btt-btn" id="reports-btt" onclick="scrollReportsTop()" title="Kembali ke atas" aria-label="Kembali ke atas"><span class="ms">arrow_upward</span></button>
   </div>
 
+  <!-- ====== AI (Tanya AI) ====== -->
+  <div class="page" id="pg-ai">
+    <div class="phdr">
+      <div class="bbtn" onclick="switchTab('dashboard')"><span class="ms">home</span></div>
+      <div class="phdr-t">Tanya AI</div>
+      <div style="display:flex;gap:7px;align-items:center;">
+        <div style="background:linear-gradient(135deg,#4285f4,#0f9d58);color:white;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;font-family:'Manrope';">✨ Gemini</div>
+        <div class="ibtn" style="width:34px;height:34px;" onclick="aiShowKeySetup()" title="Ganti API Key"><span class="ms">key</span></div>
+        <div class="ibtn" onclick="openSideMenu()"><span class="ms">menu</span></div>
+      </div>
+    </div>
+    <div class="pcontent" style="display:flex;flex-direction:column;overflow:hidden;padding-bottom:0;">
+
+      <!-- KEY SETUP -->
+      <div id="ai-key-step" style="display:none;padding:16px 16px 14px;overflow-y:auto;">
+        <div style="background:var(--blue-bg);border:1px solid rgba(0,94,164,.2);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:6px;font-family:'Manrope';">🔑 Gemini API Key</div>
+          <input type="password" id="ai-apikey" class="fi" placeholder="AIzaSy..." style="margin-bottom:6px;font-size:13px;"/>
+          <div style="font-size:11px;color:var(--txm);font-family:'Inter';">
+            Gratis di <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--blue);">aistudio.google.com</a> · Tersimpan di browser kamu
+          </div>
+        </div>
+        <button class="btn btnp" style="width:100%;" onclick="aiSaveKey()">Simpan &amp; Mulai Chat</button>
+      </div>
+
+      <!-- CHAT UI -->
+      <div id="ai-chat-step" style="display:none;flex:1;flex-direction:column;min-height:0;">
+        <div style="padding:12px 16px 10px;display:flex;gap:8px;overflow-x:auto;flex-shrink:0;">
+          <button type="button" class="ai-chip" onclick="aiQuickAsk('Buatkan ringkasan keuangan bulan ini: total pemasukan, pengeluaran, kategori terbesar, dan satu saran hemat.')">📊 Ringkasan Bulan</button>
+          <button type="button" class="ai-chip" onclick="aiQuickAsk('Buatkan ringkasan keuangan tahun ini, bandingkan dengan tahun lalu kalau datanya ada.')">📅 Ringkasan Tahun</button>
+          <button type="button" class="ai-chip" onclick="aiQuickAsk('Kategori pengeluaran apa yang paling besar bulan ini? Kasih saran buat menghematnya.')">🏆 Kategori Terbesar</button>
+          <button type="button" class="ai-chip" onclick="aiQuickAsk('Kasih 3 tips praktis buat hemat berdasarkan kebiasaan pengeluaran saya.')">💡 Tips Hemat</button>
+        </div>
+        <div id="ai-msgs" style="flex:1;overflow-y:auto;padding:4px 16px;"></div>
+        <div style="display:flex;gap:8px;padding:10px 16px calc(var(--nh) + var(--sb) + 10px);align-items:center;flex-shrink:0;border-top:1px solid var(--bdr2);">
+          <input type="text" id="ai-input" class="fi" placeholder="Tanya soal keuangan kamu…" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();aiSend();}"/>
+          <div class="ibtn" style="background:var(--primary);border-color:var(--primary);color:white;flex-shrink:0;" onclick="aiSend()"><span class="ms">send</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ====== MORE ====== -->
   <div class="page" id="pg-more">
     <div class="phdr">
@@ -1109,12 +1151,6 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
           <div id="more-email" style="font-size:12px;opacity:.75;margin-top:2px;font-family:'Inter';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
           <div id="more-count" style="font-size:11px;opacity:.6;margin-top:4px;font-family:'Inter';"></div>
         </div>
-      </div>
-      <div class="sec-head">AI</div>
-      <div class="mitem" onclick="openAiChat()">
-        <div class="mico" style="background:linear-gradient(135deg,#e8f0fe,#e6f4ea);"><span class="ms" style="color:#4285f4;">smart_toy</span></div>
-        <div class="mlbl">Tanya AI ✨</div>
-        <div class="mchev"><span class="ms">chevron_right</span></div>
       </div>
       <div class="sec-head">Data & Sync</div>
       <div id="more-firebase-item" class="mitem" onclick="refreshSync()" style="cursor:pointer;">
@@ -1212,6 +1248,9 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <div class="ntab" id="nt-reports" onclick="switchTab('reports')">
       <span class="ms">bar_chart</span><span>Laporan</span>
     </div>
+    <div class="ntab" id="nt-ai" onclick="switchTab('ai')">
+      <span class="ms">smart_toy</span><span>AI</span>
+    </div>
     <div class="ntab" id="nt-more" onclick="switchTab('more')">
       <span class="ms">more_horiz</span><span>Lainnya</span>
     </div>
@@ -1263,15 +1302,15 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <div class="sm-item" id="sm-reports" onclick="smGo('reports')">
       <div class="sm-ico" style="background:var(--green-bg);"><span class="ms" style="color:var(--green);font-size:17px;">bar_chart</span></div>Laporan
     </div>
+    <div class="sm-item" id="sm-ai" onclick="smGo('ai')">
+      <div class="sm-ico" style="background:linear-gradient(135deg,#e8f0fe,#e6f4ea);"><span class="ms" style="color:#4285f4;font-size:17px;">smart_toy</span></div>Tanya AI ✨
+    </div>
     <div class="sm-item" onclick="smGo('more')">
       <div class="sm-ico" style="background:var(--card2);"><span class="ms" style="color:var(--txm);font-size:17px;">more_horiz</span></div>Lainnya
     </div>
 
     <!-- DATA -->
     <div class="sm-section">Data</div>
-    <div class="sm-item" onclick="closeSideMenu();openAiChat();">
-      <div class="sm-ico" style="background:linear-gradient(135deg,#e8f0fe,#e6f4ea);"><span class="ms" style="color:#4285f4;font-size:17px;">smart_toy</span></div>Tanya AI ✨
-    </div>
     <div class="sm-item" onclick="closeSideMenu();openImportDrawer();">
       <div class="sm-ico" style="background:var(--green-bg);"><span class="ms" style="color:var(--green);font-size:17px;">upload_file</span></div>Import CSV
     </div>
@@ -1826,48 +1865,6 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <div style="font-size:13px;color:var(--txm);font-family:'Inter';" id="pdf-done-sub"></div>
       <div class="factions" style="margin-top:24px;">
         <button class="btn btnp" onclick="closeDrawer('pdf-dover');renderDash();">Lihat Dashboard</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- ====== AI CHAT DRAWER ====== -->
-<div class="dover" id="ai-dover" onclick="closeDrawer('ai-dover')">
-  <div class="drawer" onclick="event.stopPropagation()" style="max-height:92vh;display:flex;flex-direction:column;">
-    <div class="dhandle"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 20px 14px;flex-shrink:0;">
-      <div class="dtitle" style="padding:0;">Tanya AI</div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div style="background:linear-gradient(135deg,#4285f4,#0f9d58);color:white;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;font-family:'Manrope';">✨ Gemini</div>
-        <div class="ibtn" style="width:28px;height:28px;" onclick="aiShowKeySetup()" title="Ganti API Key"><span class="ms" style="font-size:16px;">key</span></div>
-      </div>
-    </div>
-
-    <!-- KEY SETUP -->
-    <div id="ai-key-step" style="display:none;padding:0 20px 14px;flex-shrink:0;">
-      <div style="background:var(--blue-bg);border:1px solid rgba(0,94,164,.2);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
-        <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:6px;font-family:'Manrope';">🔑 Gemini API Key</div>
-        <input type="password" id="ai-apikey" class="fi" placeholder="AIzaSy..." style="margin-bottom:6px;font-size:13px;"/>
-        <div style="font-size:11px;color:var(--txm);font-family:'Inter';">
-          Gratis di <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--blue);">aistudio.google.com</a> · Tersimpan di browser kamu
-        </div>
-      </div>
-      <button class="btn btnp" style="width:100%;" onclick="aiSaveKey()">Simpan &amp; Mulai Chat</button>
-    </div>
-
-    <!-- CHAT UI -->
-    <div id="ai-chat-step" style="display:none;flex:1;flex-direction:column;min-height:0;">
-      <div style="padding:0 16px 10px;display:flex;gap:8px;overflow-x:auto;flex-shrink:0;">
-        <button type="button" class="ai-chip" onclick="aiQuickAsk('Buatkan ringkasan keuangan bulan ini: total pemasukan, pengeluaran, kategori terbesar, dan satu saran hemat.')">📊 Ringkasan Bulan</button>
-        <button type="button" class="ai-chip" onclick="aiQuickAsk('Buatkan ringkasan keuangan tahun ini, bandingkan dengan tahun lalu kalau datanya ada.')">📅 Ringkasan Tahun</button>
-        <button type="button" class="ai-chip" onclick="aiQuickAsk('Kategori pengeluaran apa yang paling besar bulan ini? Kasih saran buat menghematnya.')">🏆 Kategori Terbesar</button>
-        <button type="button" class="ai-chip" onclick="aiQuickAsk('Kasih 3 tips praktis buat hemat berdasarkan kebiasaan pengeluaran saya.')">💡 Tips Hemat</button>
-      </div>
-      <div id="ai-msgs" style="flex:1;overflow-y:auto;padding:4px 16px;min-height:200px;max-height:48vh;"></div>
-      <div style="display:flex;gap:8px;padding:10px 16px 2px;align-items:center;flex-shrink:0;">
-        <input type="text" id="ai-input" class="fi" placeholder="Tanya soal keuangan kamu…" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();aiSend();}"/>
-        <div class="ibtn" style="background:var(--primary);border-color:var(--primary);color:white;flex-shrink:0;" onclick="aiSend()"><span class="ms">send</span></div>
       </div>
     </div>
   </div>
@@ -2553,6 +2550,7 @@ function switchTab(t,fromPop){
   if(t==='transactions')filterTxns();
   if(t==='reports')renderCatR();
   if(t==='more')updateUserUI();
+  if(t==='ai')aiInit();
 }
 function backToAccts(fromPop){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
@@ -5213,8 +5211,8 @@ function openSideMenu(){
   var syncDot=document.getElementById('sm-sync-dot');
   if(syncDot){var si=document.getElementById('sync-indicator');if(si)syncDot.textContent=si.textContent;}
   // Active nav
-  ['overview','transactions','reports','accounts','recent'].forEach(function(id){var el=document.getElementById('sm-'+id);if(el)el.classList.remove('active');});
-  var map={dashboard:'overview',transactions:'transactions',reports:'reports',accounts:'accounts',recent:'recent'};
+  ['overview','transactions','reports','accounts','recent','ai'].forEach(function(id){var el=document.getElementById('sm-'+id);if(el)el.classList.remove('active');});
+  var map={dashboard:'overview',transactions:'transactions',reports:'reports',accounts:'accounts',recent:'recent',ai:'ai'};
   if(map[curTab]){var el=document.getElementById('sm-'+map[curTab]);if(el)el.classList.add('active');}
 }
 function closeSideMenu(fromPop){document.getElementById('sidemenu').style.left='-280px';document.getElementById('sidemenu-overlay').style.display='none';if(!fromPop)mlbPopIfNeeded();}
@@ -7205,8 +7203,7 @@ function aiMdLite(s) {
   return t;
 }
 
-function openAiChat() {
-  openDrawer('ai-dover');
+function aiInit() {
   var key = '';
   try { key = localStorage.getItem(GEMINI_KEY_STORAGE) || ''; } catch(e) {}
   if (!key) {
@@ -7214,7 +7211,7 @@ function openAiChat() {
   } else {
     document.getElementById('ai-key-step').style.display = 'none';
     document.getElementById('ai-chat-step').style.display = 'flex';
-    if (!aiChatHistory.length) {
+    if (!document.getElementById('ai-msgs').children.length) {
       aiRenderMsg('model', aiMdLite('Halo! 👋 Tanya apa saja soal keuangan kamu, atau pilih salah satu tombol cepat di atas.'));
     }
   }
@@ -7234,7 +7231,7 @@ function aiSaveKey() {
   try { localStorage.setItem(GEMINI_KEY_STORAGE, key); } catch(e) {}
   document.getElementById('ai-key-step').style.display = 'none';
   document.getElementById('ai-chat-step').style.display = 'flex';
-  if (!aiChatHistory.length) {
+  if (!document.getElementById('ai-msgs').children.length) {
     aiRenderMsg('model', aiMdLite('Halo! 👋 Tanya apa saja soal keuangan kamu, atau pilih salah satu tombol cepat di atas.'));
   }
 }
