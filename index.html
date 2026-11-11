@@ -7331,6 +7331,11 @@ async function aiCallGemini(apiKey, systemText, contents) {
     for (var attempt = 1; attempt <= 2; attempt++) {
       if (attempt > 1) await sleep(2000);
       try {
+        // 2.5-series models think before answering, and that reasoning eats
+        // into maxOutputTokens — without thinkingBudget:0 the visible reply
+        // can get cut off mid-sentence well under the token cap.
+        var genConfig = { temperature: 0.3, maxOutputTokens: 4096 };
+        if (modelName.indexOf('2.5') > -1) genConfig.thinkingConfig = { thinkingBudget: 0 };
         var response = await fetch(
           'https://generativelanguage.googleapis.com/v1beta/models/' + modelName + ':generateContent?key=' + apiKey,
           {
@@ -7339,7 +7344,7 @@ async function aiCallGemini(apiKey, systemText, contents) {
             body: JSON.stringify({
               systemInstruction: { parts: [{ text: systemText }] },
               contents: contents,
-              generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
+              generationConfig: genConfig
             })
           }
         );
@@ -7353,10 +7358,15 @@ async function aiCallGemini(apiKey, systemText, contents) {
           if (isOverload && attempt < 2) continue;
           break; // try next model
         }
-        var text = data.candidates && data.candidates[0] &&
-          data.candidates[0].content && data.candidates[0].content.parts &&
-          data.candidates[0].content.parts[0] ? data.candidates[0].content.parts[0].text : '';
-        if (text && text.length > 0) return text;
+        var cand = data.candidates && data.candidates[0];
+        var text = cand && cand.content && cand.content.parts && cand.content.parts[0]
+          ? cand.content.parts[0].text : '';
+        if (text && text.length > 0) {
+          if (cand.finishReason === 'MAX_TOKENS') {
+            text += '\n\n_(jawaban terpotong karena kepanjangan — coba tanya lebih spesifik)_';
+          }
+          return text;
+        }
         lastErr = 'Respons kosong';
         break;
       } catch (e) {
