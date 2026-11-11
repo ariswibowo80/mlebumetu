@@ -287,6 +287,19 @@ body.bulk-on .fab-main-btn,body.bulk-on #fab-opts{display:none !important;}
 .btnp{background:linear-gradient(to bottom,var(--primary),var(--primary-dark));color:white;}
 .btng{background:var(--card2);color:var(--txd);border:1px solid var(--bdr);}
 
+/* ===== AI CHAT ===== */
+.ai-chip{flex-shrink:0;padding:7px 12px;border-radius:20px;border:1px solid var(--bdr);background:var(--card2);font-size:12px;font-family:'Inter';font-weight:600;color:var(--tx);cursor:pointer;white-space:nowrap;}
+.ai-chip:active{background:var(--primary-light);border-color:var(--primary);}
+.ai-row{display:flex;margin-bottom:12px;}
+.ai-row.user{justify-content:flex-end;}
+.ai-bub{max-width:82%;padding:10px 14px;border-radius:16px;font-size:13px;line-height:1.55;font-family:'Inter';white-space:normal;word-wrap:break-word;}
+.ai-row.user .ai-bub{background:var(--primary);color:#fff;border-radius:16px 16px 4px 16px;}
+.ai-row.model .ai-bub{background:var(--card2);color:var(--tx);border-radius:16px 16px 16px 4px;}
+.ai-dots span{display:inline-block;width:6px;height:6px;margin:0 2px;border-radius:50%;background:var(--txm);animation:ai-blink 1.2s infinite ease-in-out both;}
+.ai-dots span:nth-child(2){animation-delay:.2s;}
+.ai-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes ai-blink{0%,80%,100%{opacity:.3;}40%{opacity:1;}}
+
 /* ===== AMOUNT HERO INPUT ===== */
 .amt-hero-wrap{background:var(--primary-light);border-radius:16px;padding:16px 18px;margin:0 20px 14px;}
 .amt-hero-input{width:100%;background:transparent;border:none;font-family:'Manrope';font-size:38px;font-weight:800;color:var(--primary);text-align:right;outline:none;letter-spacing:-.02em;}
@@ -684,6 +697,10 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       Lainnya
     </div>
     <div class="dsb-section">Aksi Cepat</div>
+    <div class="dsb-item" onclick="openAiChat()">
+      <div class="dsb-ico" style="background:linear-gradient(135deg,#e8f0fe,#e6f4ea);"><span class="ms" style="color:#4285f4;">smart_toy</span></div>
+      Tanya AI ✨
+    </div>
     <div class="dsb-item" onclick="openImportDrawer()">
       <div class="dsb-ico" style="background:var(--green-bg);"><span class="ms" style="color:var(--green);">upload_file</span></div>
       Import CSV
@@ -1093,6 +1110,12 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
           <div id="more-count" style="font-size:11px;opacity:.6;margin-top:4px;font-family:'Inter';"></div>
         </div>
       </div>
+      <div class="sec-head">AI</div>
+      <div class="mitem" onclick="openAiChat()">
+        <div class="mico" style="background:linear-gradient(135deg,#e8f0fe,#e6f4ea);"><span class="ms" style="color:#4285f4;">smart_toy</span></div>
+        <div class="mlbl">Tanya AI ✨</div>
+        <div class="mchev"><span class="ms">chevron_right</span></div>
+      </div>
       <div class="sec-head">Data & Sync</div>
       <div id="more-firebase-item" class="mitem" onclick="refreshSync()" style="cursor:pointer;">
         <div class="mico" style="background:var(--blue-bg);"><span id="firebase-status-icon" class="ms" style="color:var(--blue);">cloud_sync</span></div>
@@ -1246,6 +1269,9 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 
     <!-- DATA -->
     <div class="sm-section">Data</div>
+    <div class="sm-item" onclick="closeSideMenu();openAiChat();">
+      <div class="sm-ico" style="background:linear-gradient(135deg,#e8f0fe,#e6f4ea);"><span class="ms" style="color:#4285f4;font-size:17px;">smart_toy</span></div>Tanya AI ✨
+    </div>
     <div class="sm-item" onclick="closeSideMenu();openImportDrawer();">
       <div class="sm-ico" style="background:var(--green-bg);"><span class="ms" style="color:var(--green);font-size:17px;">upload_file</span></div>Import CSV
     </div>
@@ -1805,6 +1831,47 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
   </div>
 </div>
 
+
+<!-- ====== AI CHAT DRAWER ====== -->
+<div class="dover" id="ai-dover" onclick="closeDrawer('ai-dover')">
+  <div class="drawer" onclick="event.stopPropagation()" style="max-height:92vh;display:flex;flex-direction:column;">
+    <div class="dhandle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 20px 14px;flex-shrink:0;">
+      <div class="dtitle" style="padding:0;">Tanya AI</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="background:linear-gradient(135deg,#4285f4,#0f9d58);color:white;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;font-family:'Manrope';">✨ Gemini</div>
+        <div class="ibtn" style="width:28px;height:28px;" onclick="aiShowKeySetup()" title="Ganti API Key"><span class="ms" style="font-size:16px;">key</span></div>
+      </div>
+    </div>
+
+    <!-- KEY SETUP -->
+    <div id="ai-key-step" style="display:none;padding:0 20px 14px;flex-shrink:0;">
+      <div style="background:var(--blue-bg);border:1px solid rgba(0,94,164,.2);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:6px;font-family:'Manrope';">🔑 Gemini API Key</div>
+        <input type="password" id="ai-apikey" class="fi" placeholder="AIzaSy..." style="margin-bottom:6px;font-size:13px;"/>
+        <div style="font-size:11px;color:var(--txm);font-family:'Inter';">
+          Gratis di <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--blue);">aistudio.google.com</a> · Tersimpan di browser kamu
+        </div>
+      </div>
+      <button class="btn btnp" style="width:100%;" onclick="aiSaveKey()">Simpan &amp; Mulai Chat</button>
+    </div>
+
+    <!-- CHAT UI -->
+    <div id="ai-chat-step" style="display:none;flex:1;flex-direction:column;min-height:0;">
+      <div style="padding:0 16px 10px;display:flex;gap:8px;overflow-x:auto;flex-shrink:0;">
+        <button type="button" class="ai-chip" onclick="aiQuickAsk('Buatkan ringkasan keuangan bulan ini: total pemasukan, pengeluaran, kategori terbesar, dan satu saran hemat.')">📊 Ringkasan Bulan</button>
+        <button type="button" class="ai-chip" onclick="aiQuickAsk('Buatkan ringkasan keuangan tahun ini, bandingkan dengan tahun lalu kalau datanya ada.')">📅 Ringkasan Tahun</button>
+        <button type="button" class="ai-chip" onclick="aiQuickAsk('Kategori pengeluaran apa yang paling besar bulan ini? Kasih saran buat menghematnya.')">🏆 Kategori Terbesar</button>
+        <button type="button" class="ai-chip" onclick="aiQuickAsk('Kasih 3 tips praktis buat hemat berdasarkan kebiasaan pengeluaran saya.')">💡 Tips Hemat</button>
+      </div>
+      <div id="ai-msgs" style="flex:1;overflow-y:auto;padding:4px 16px;min-height:200px;max-height:48vh;"></div>
+      <div style="display:flex;gap:8px;padding:10px 16px 2px;align-items:center;flex-shrink:0;">
+        <input type="text" id="ai-input" class="fi" placeholder="Tanya soal keuangan kamu…" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();aiSend();}"/>
+        <div class="ibtn" style="background:var(--primary);border-color:var(--primary);color:white;flex-shrink:0;" onclick="aiSend()"><span class="ms">send</span></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ====== FIREBASE SETUP DRAWER ====== -->
 <div class="dover" id="firebase-dover" onclick="closeDrawer('firebase-dover')">
@@ -7112,6 +7179,222 @@ saveAcctMeta = function() {
   _origSaveAcctMeta2();
   buildOvAcctDropdown();
 };
+
+// ══════════════════════════════════════════════════
+// ║  AI CHAT — Tanya AI (Gemini)                      ║
+// ║  Reuses the same Gemini key as PDF import          ║
+// ══════════════════════════════════════════════════
+var aiChatHistory = []; // [{role:'user'|'model', text}]
+var AI_SYSTEM_PROMPT =
+  'Kamu adalah asisten keuangan pribadi di aplikasi Mlebumetu. ' +
+  'Jawab singkat, jelas, dan ramah dalam Bahasa Indonesia. ' +
+  'Selalu format angka uang sebagai Rupiah, contoh: Rp1.250.000. ' +
+  'Gunakan HANYA data transaksi yang diberikan untuk menjawab — jangan mengarang transaksi atau angka yang tidak ada di data. ' +
+  'Kalau data tidak cukup untuk menjawab pasti, katakan dengan jujur lalu beri estimasi terbaik dari data yang tersedia. ' +
+  'Jawaban maksimal beberapa paragraf singkat atau bullet point, jangan bertele-tele.';
+
+function aiEsc(s) {
+  return (s == null ? '' : String(s)).replace(/[&<>"']/g, function(c) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c];
+  });
+}
+function aiMdLite(s) {
+  var t = aiEsc(s);
+  t = t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  t = t.replace(/\n/g, '<br>');
+  return t;
+}
+
+function openAiChat() {
+  openDrawer('ai-dover');
+  var key = '';
+  try { key = localStorage.getItem(GEMINI_KEY_STORAGE) || ''; } catch(e) {}
+  if (!key) {
+    aiShowKeySetup();
+  } else {
+    document.getElementById('ai-key-step').style.display = 'none';
+    document.getElementById('ai-chat-step').style.display = 'flex';
+    if (!aiChatHistory.length) {
+      aiRenderMsg('model', aiMdLite('Halo! 👋 Tanya apa saja soal keuangan kamu, atau pilih salah satu tombol cepat di atas.'));
+    }
+  }
+}
+
+function aiShowKeySetup() {
+  var key = '';
+  try { key = localStorage.getItem(GEMINI_KEY_STORAGE) || ''; } catch(e) {}
+  document.getElementById('ai-apikey').value = key;
+  document.getElementById('ai-key-step').style.display = 'block';
+  document.getElementById('ai-chat-step').style.display = 'none';
+}
+
+function aiSaveKey() {
+  var key = (document.getElementById('ai-apikey').value || '').trim();
+  if (!key) { showToast('⚠️ Masukkan Gemini API Key dulu'); return; }
+  try { localStorage.setItem(GEMINI_KEY_STORAGE, key); } catch(e) {}
+  document.getElementById('ai-key-step').style.display = 'none';
+  document.getElementById('ai-chat-step').style.display = 'flex';
+  if (!aiChatHistory.length) {
+    aiRenderMsg('model', aiMdLite('Halo! 👋 Tanya apa saja soal keuangan kamu, atau pilih salah satu tombol cepat di atas.'));
+  }
+}
+
+function aiRenderMsg(role, html) {
+  var box = document.getElementById('ai-msgs');
+  var row = document.createElement('div');
+  row.className = 'ai-row ' + role;
+  row.innerHTML = '<div class="ai-bub">' + html + '</div>';
+  box.appendChild(row);
+  box.scrollTop = box.scrollHeight;
+  return row;
+}
+
+function aiShowTyping() {
+  var row = aiRenderMsg('model', '<span class="ai-dots"><span></span><span></span><span></span></span>');
+  row.id = 'ai-typing-row';
+  return row;
+}
+function aiHideTyping() {
+  var row = document.getElementById('ai-typing-row');
+  if (row) row.remove();
+}
+
+function aiQuickAsk(q) {
+  document.getElementById('ai-input').value = q;
+  aiSend();
+}
+
+// Builds a compact, token-friendly snapshot of the user's finances for the model.
+function aiBuildContext() {
+  var now = new Date();
+  var ym = now.toISOString().slice(0, 7);
+  var lastMoDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  var ymLast = lastMoDate.toISOString().slice(0, 7);
+  var yr = ym.slice(0, 4);
+
+  var balances = (allAccts || []).map(function(a) {
+    var bal = allTxns.filter(function(t){ return t.account === a; })
+      .reduce(function(s, t){ return s + t.amount; }, 0);
+    return al(a) + ': Rp' + fn(bal);
+  }).join(', ');
+
+  function sumAbs(ymStr, wantIncome) {
+    return allTxns.filter(function(t) {
+      return t.date.indexOf(ymStr) === 0 && !isTf(t.category) &&
+        (wantIncome ? t.amount > 0 : t.amount < 0);
+    }).reduce(function(s, t){ return s + Math.abs(t.amount); }, 0);
+  }
+  var incThis = sumAbs(ym, true), expThis = sumAbs(ym, false);
+  var incLast = sumAbs(ymLast, true), expLast = sumAbs(ymLast, false);
+  var incYear = sumAbs(yr, true), expYear = sumAbs(yr, false);
+
+  var catTotals = {};
+  allTxns.filter(function(t) {
+    return t.date.indexOf(ym) === 0 && t.amount < 0 && !isTf(t.category);
+  }).forEach(function(t) {
+    catTotals[t.category] = (catTotals[t.category] || 0) + Math.abs(t.amount);
+  });
+  var topCats = Object.keys(catTotals).map(function(c) {
+    return { c: c, v: catTotals[c] };
+  }).sort(function(a, b){ return b.v - a.v; }).slice(0, 5)
+    .map(function(x){ return x.c + ': Rp' + fn(x.v); }).join(', ') || 'tidak ada data';
+
+  var cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - 90);
+  var cutoffStr = cutoff.toISOString().slice(0, 10);
+  var recent = allTxns.filter(function(t){ return t.date >= cutoffStr; })
+    .sort(function(a, b){ return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0); })
+    .slice(0, 300);
+  var recentLines = recent.map(function(t) {
+    return t.date + '|' + al(t.account) + '|' + t.category + '|' + t.payee + '|' +
+      (t.amount >= 0 ? '+' : '') + Math.round(t.amount);
+  }).join('\n');
+
+  return 'DATA KEUANGAN USER (mata uang Rupiah, hari ini ' + now.toISOString().slice(0, 10) + '):\n' +
+    'Saldo per akun: ' + (balances || 'tidak ada akun') + '\n' +
+    'Bulan ini (' + ym + '): Pemasukan Rp' + fn(incThis) + ', Pengeluaran Rp' + fn(expThis) + '\n' +
+    'Bulan lalu (' + ymLast + '): Pemasukan Rp' + fn(incLast) + ', Pengeluaran Rp' + fn(expLast) + '\n' +
+    'Tahun ini (' + yr + '): Pemasukan Rp' + fn(incYear) + ', Pengeluaran Rp' + fn(expYear) + '\n' +
+    'Top 5 kategori pengeluaran bulan ini: ' + topCats + '\n\n' +
+    'Daftar transaksi 90 hari terakhir (maks 300, terbaru dulu, format tanggal|akun|kategori|keterangan|jumlah; jumlah negatif=keluar, positif=masuk):\n' +
+    (recentLines || '(tidak ada transaksi dalam 90 hari terakhir)');
+}
+
+async function aiCallGemini(apiKey, systemText, contents) {
+  var models = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.5-pro', 'gemini-2.0-flash'];
+  var lastErr = '';
+  function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  for (var mi = 0; mi < models.length; mi++) {
+    var modelName = models[mi];
+    for (var attempt = 1; attempt <= 2; attempt++) {
+      if (attempt > 1) await sleep(2000);
+      try {
+        var response = await fetch(
+          'https://generativelanguage.googleapis.com/v1beta/models/' + modelName + ':generateContent?key=' + apiKey,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: systemText }] },
+              contents: contents,
+              generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
+            })
+          }
+        );
+        var data = await response.json();
+        if (!response.ok) {
+          lastErr = (data.error && data.error.message) ? data.error.message : 'HTTP ' + response.status;
+          var isOverload = lastErr.toLowerCase().indexOf('high demand') > -1 ||
+            lastErr.toLowerCase().indexOf('overloaded') > -1 ||
+            lastErr.toLowerCase().indexOf('quota') > -1 ||
+            response.status === 429 || response.status === 503;
+          if (isOverload && attempt < 2) continue;
+          break; // try next model
+        }
+        var text = data.candidates && data.candidates[0] &&
+          data.candidates[0].content && data.candidates[0].content.parts &&
+          data.candidates[0].content.parts[0] ? data.candidates[0].content.parts[0].text : '';
+        if (text && text.length > 0) return text;
+        lastErr = 'Respons kosong';
+        break;
+      } catch (e) {
+        lastErr = e.message;
+        break;
+      }
+    }
+  }
+  throw new Error(lastErr || 'Gagal menghubungi Gemini');
+}
+
+async function aiSend() {
+  var inp = document.getElementById('ai-input');
+  var msg = (inp.value || '').trim();
+  if (!msg) return;
+  var apiKey = '';
+  try { apiKey = localStorage.getItem(GEMINI_KEY_STORAGE) || ''; } catch(e) {}
+  if (!apiKey) { aiShowKeySetup(); return; }
+
+  inp.value = '';
+  aiChatHistory.push({ role: 'user', text: msg });
+  aiRenderMsg('user', aiEsc(msg));
+  aiShowTyping();
+
+  try {
+    var sys = AI_SYSTEM_PROMPT + '\n\n' + aiBuildContext();
+    var contents = aiChatHistory.map(function(h) {
+      return { role: h.role, parts: [{ text: h.text }] };
+    });
+    var reply = await aiCallGemini(apiKey, sys, contents);
+    aiHideTyping();
+    aiChatHistory.push({ role: 'model', text: reply });
+    aiRenderMsg('model', aiMdLite(reply));
+  } catch (err) {
+    aiHideTyping();
+    aiChatHistory.pop(); // drop the unanswered turn so retry doesn't duplicate it
+    aiRenderMsg('model', '<span style="color:var(--red);">⚠️ ' + aiEsc(err.message || 'Gagal menghubungi AI') + '</span>');
+  }
+}
 
 </script>
 </body>
