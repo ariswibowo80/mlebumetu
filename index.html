@@ -134,7 +134,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Inter',s
 .sd-btn:active{transform:scale(.9);}
 #fab-backdrop{position:fixed;inset:0;z-index:199;display:none;}
 
-/* ===== BACK TO TOP (Laporan) ===== */
+/* ===== BACK TO TOP (Akun / Terbaru / Transaksi / Laporan) ===== */
 /* Same fixed-not-absolute reasoning as the FAB above, mirrored on the
    opposite side so the two floating buttons never overlap. */
 .btt-btn{position:fixed;bottom:calc(var(--nh) + var(--sb) + 14px);left:16px;width:44px;height:44px;border-radius:50%;background:var(--card);border:1px solid var(--bdr);box-shadow:0 6px 20px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:150;color:var(--primary);opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .2s,transform .2s;}
@@ -856,6 +856,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <div class="spills" id="acct-stats"></div>
       <div class="alist" id="alist"></div>
     </div>
+    <button type="button" class="btt-btn" id="accounts-btt" onclick="scrollPageTop('#pg-accounts')" title="Kembali ke atas" aria-label="Kembali ke atas"><span class="ms">arrow_upward</span></button>
   </div>
 
   <!-- ====== ACCOUNT DETAIL ====== -->
@@ -900,6 +901,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <div style="display:flex;justify-content:flex-end;padding:8px 16px 0;"><button class="bulk-chip" onclick="bulkToggleMode()" title="Pilih beberapa transaksi untuk ubah kategori sekaligus"><span class="ms" style="font-size:14px;">checklist</span><span class="bulk-chip-t">Pilih</span></button></div>
       <div id="recent-list"></div>
     </div>
+    <button type="button" class="btt-btn" id="recent-btt" onclick="scrollPageTop('#pg-recent')" title="Kembali ke atas" aria-label="Kembali ke atas"><span class="ms">arrow_upward</span></button>
   </div>
 
   <!-- ====== TRANSACTIONS ====== -->
@@ -940,6 +942,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <!-- Timeline list -->
       <div id="tlist" style="padding:0 0 8px;"></div>
     </div>
+    <button type="button" class="btt-btn" id="transactions-btt" onclick="scrollPageTop('#pg-transactions')" title="Kembali ke atas" aria-label="Kembali ke atas"><span class="ms">arrow_upward</span></button>
   </div>
 
   <!-- ====== REPORTS ====== -->
@@ -1086,7 +1089,7 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <!-- Appears once the Laporan tab's own content has scrolled down a bit;
          jumps straight back to the top of whichever sub-tab (Kategori/
          Bulanan/Tahunan) is active. -->
-    <button type="button" class="btt-btn" id="reports-btt" onclick="scrollReportsTop()" title="Kembali ke atas" aria-label="Kembali ke atas"><span class="ms">arrow_upward</span></button>
+    <button type="button" class="btt-btn" id="reports-btt" onclick="scrollPageTop('#pg-reports')" title="Kembali ke atas" aria-label="Kembali ke atas"><span class="ms">arrow_upward</span></button>
   </div>
 
   <!-- ====== AI (Tanya AI) ====== -->
@@ -5175,22 +5178,27 @@ function closeFab(){
   if(x)x.style.display='none';
 }
 
-// ── BACK TO TOP (Laporan) ──────────────────────────
-// Toggles the floating button once the Laporan tab's own scroll container
+// ── BACK TO TOP (Akun / Terbaru / Transaksi / Laporan) ──
+// Toggles a page's floating button once that page's own scroll container
 // (not the window — .pcontent scrolls internally, see its CSS) passes a
-// threshold, and jumps it back to the top of whichever sub-tab is active.
-(function initReportsBackToTop(){
-  var box=document.querySelector('#pg-reports .pcontent');
-  var btn=document.getElementById('reports-btt');
+// threshold, and jumps it back to the top of whatever is currently shown
+// (e.g. whichever Laporan sub-tab is active).
+function initBackToTop(pageSel,btnId){
+  var box=document.querySelector(pageSel+' .pcontent');
+  var btn=document.getElementById(btnId);
   if(!box||!btn)return;
   box.addEventListener('scroll',function(){
     btn.classList.toggle('show',box.scrollTop>280);
   });
-})();
-function scrollReportsTop(){
-  var box=document.querySelector('#pg-reports .pcontent');
+}
+function scrollPageTop(pageSel){
+  var box=document.querySelector(pageSel+' .pcontent');
   if(box)box.scrollTo({top:0,behavior:'smooth'});
 }
+initBackToTop('#pg-accounts','accounts-btt');
+initBackToTop('#pg-recent','recent-btt');
+initBackToTop('#pg-transactions','transactions-btt');
+initBackToTop('#pg-reports','reports-btt');
 
 // ── SIDE MENU ─────────────────────────────────────
 function openSideMenu(){
